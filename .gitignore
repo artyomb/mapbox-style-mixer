@@ -1,0 +1,5 @@
+.idea
+.qodo
+**/node_modules
+*.iml
+src.iml

@@ -1,0 +1,16 @@
+source 'https://rubygems.org'
+ruby '3.4.4'
+
+gem 'sinatra'
+gem 'async'
+gem 'faraday'
+gem 'faraday-net_http'  # or just rely on the default adapter
+gem 'faraday-retry',               '~> 2.2'
+gem 'faraday-net_http_persistent', '~> 2.0'
+
+gem 'rack', '~> 3.1.13'
+gem 'rackup', '~> 2.2.1'
+gem 'falcon'
+
+gem 'stack-service-base'
+#, path: '/home/user/projects/stack-service-base'

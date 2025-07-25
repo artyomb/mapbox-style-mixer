@@ -1,0 +1,12 @@
+services:
+  mapbox_style_mixer:
+    image: ${REGISTRY_HOST}/mapbox-style-mixer
+    build:
+      context: ../src
+      dockerfile: ../docker/ruby/Dockerfile
+      cache_from:
+        - type=gha,scope=mapbox-style-mixer
+      cache_to:
+        - type=gha,scope=mapbox-style-mixer,mode=max
+    ports:
+      - 7000:7000
