@@ -1,27 +1,30 @@
 require 'sinatra'
+require 'yaml'
+require 'json'
 require 'faraday'
-require 'faraday/retry'
-require 'faraday/net_http_persistent'
 require 'stack-service-base'
 
 StackServiceBase.rack_setup self
 
-configure do
-  # f_client =  Faraday.new url: "https://...", ssl: { verify: false } do |f|
-  #     f.request  :retry, max: 2, interval: 0.2, backoff_factor: 2
-  #     # f.response :json, content_type: /\bjson$/
-  #     f.options.timeout      = 15
-  #     f.options.open_timeout = 10
-  #     f.adapter :net_http_persistent, pool_size: 10, idle_timeout: 60
-  # end
-  # set :http_clients, f_client
-end
-
-get '/styles/:style'
+CONFIG = YAML.load_file(File.expand_path('styles_to_mix.yml', __dir__))
 
 helpers do
-  def foo
+  def fetch_style(cfg)
+    return JSON.parse(Faraday.get(cfg['url']).body) if cfg['url']
+    return JSON.parse(File.read(File.expand_path(cfg['file'], __dir__))) if cfg['file']
+    halt 400, { error: 'No url or file for style' }.to_json
   end
 end
+
+get '/mix' do
+  content_type :json
+  fetch_style(CONFIG['styles'].first).to_json
+end
+
+# get '/fonts/:fontstack/:range.pbf' do
+# end
+#
+# get '/sprites/:sprite_name' do
+# end
 
 run Sinatra::Application
