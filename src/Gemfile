@@ -14,3 +14,4 @@ gem 'falcon'
 
 gem 'stack-service-base'
 #, path: '/home/user/projects/stack-service-base'
+gem 'parallel'

@@ -3,6 +3,7 @@ require 'json'
 require 'fileutils'
 require 'faraday'
 require 'uri'
+require 'parallel'
 
 config = YAML.load_file(File.expand_path('styles_to_mix.yml', __dir__))
 raw_dir = File.expand_path('raw_styles', __dir__)
@@ -35,21 +36,20 @@ config['styles'].each do |style|
   next unless (glyphs_url = style_json['glyphs'])
   fontstacks = style_json['layers'].map { |l| l.dig('layout', 'text-font') }.compact.flatten.uniq
   ranges = (0..65535).step(256).map { |start| "#{start}-#{start+255}" }
-  fontstacks.each do |fontstack|
+  tasks = fontstacks.product(ranges)
+  Parallel.each(tasks, in_threads: 8) do |fontstack, range|
     dir = File.join(fonts_dir, fontstack)
     FileUtils.mkdir_p(dir)
     enc = URI.encode_www_form_component(fontstack)
-    ranges.each do |range|
-      fname = "#{range}.pbf"
-      url1 = glyphs_url.sub('{fontstack}', enc).sub('{range}', range)
-      url1 += '.pbf' unless url1.end_with?('.pbf')
-      r = Faraday.get(url1)
-      unless r.success?
-        url2 = "https://demotiles.maplibre.org/font/#{enc}/#{fname}"
-        r = Faraday.get(url2)
-      end
-      puts "GET #{url1} => #{r.status}#{' (fallback)' unless r.success?}"
-      File.write(File.join(dir, fname), r.body) if r.success?
+    fname = "#{range}.pbf"
+    url1 = glyphs_url.sub('{fontstack}', enc).sub('{range}', range)
+    url1 += '.pbf' unless url1.end_with?('.pbf')
+    r = Faraday.get(url1)
+    unless r.success?
+      url2 = "https://demotiles.maplibre.org/font/#{enc}/#{fname}"
+      r = Faraday.get(url2)
     end
+    puts "GET #{url1} => #{r.status}#{' (fallback)' unless r.success?}"
+    File.write(File.join(dir, fname), r.body) if r.success?
   end
 end 
