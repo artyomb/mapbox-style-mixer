@@ -6,7 +6,7 @@ require 'stack-service-base'
 
 StackServiceBase.rack_setup self
 
-CONFIG = YAML.load_file(File.expand_path('styles_to_mix.yml', __dir__))
+CONFIG = YAML.load_file(File.expand_path('styles_config.yaml', __dir__))
 
 helpers do
   def fetch_style(cfg)

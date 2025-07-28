@@ -1,0 +1,15 @@
+styles:
+  mix_style1:
+    id: 'mix_style1'
+    name: "Mix Style 1"
+    sources:
+      - https://tiles.weather.gis-master.ru/styles/weather/weather
+      - https://tiles.weather.gis-master.ru/styles/weather/weather
+      - https://tiles.weather.gis-master.ru/styles/weather/weather
+
+  mix_style2:
+    id: 'mix_style2'
+    name: "Mix Style 2"
+    sources:
+      - https://tiles.weather.gis-master.ru/styles/weather/weather
+      - https://tiles.weather.gis-master.ru/styles/weather/weather

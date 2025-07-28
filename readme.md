@@ -16,6 +16,7 @@ styles:
 ```bash
  docker run --rm \
     -v $(pwd)/styles_config.yaml:/configs/styles_config.yaml \
+    -v $(pwd)/data:/data \
     -p 7000:7000 \
     dtorry/mapbox-style-mixer
 ```

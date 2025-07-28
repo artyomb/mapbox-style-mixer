@@ -1,4 +1,0 @@
-styles:
-  - name: weather
-    url: https://tiles.weather.gis-master.ru/styles/weather/weather
-    prefix: weather 
