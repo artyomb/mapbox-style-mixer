@@ -5,6 +5,7 @@ require 'faraday'
 require 'stack-service-base'
 require 'slim'
 require_relative 'style_downloader'
+require_relative 'style_mixer'
 
 StackServiceBase.rack_setup self
 
@@ -13,7 +14,8 @@ START_TIME = Time.now
 
 begin
   StyleDownloader.download_all
-  LOGGER.info "Styles successfully loaded on startup"
+  StyleMixer.mix_all_styles
+  LOGGER.info "Styles successfully loaded and mixed on startup"
 rescue => e
   LOGGER.error "Error loading styles on startup: #{e.message}"
 end
@@ -23,9 +25,10 @@ helpers do
     mix_config = CONFIG['styles'][mix_id]
     halt 404, { error: "Style '#{mix_id}' not found" }.to_json unless mix_config
     
-    resp = Faraday.get(mix_config['sources'].first)
-    raise "Failed to fetch #{mix_config['sources'].first}" unless resp.success?
-    JSON.parse(resp.body)
+    mixed_file = File.expand_path("mixed_styles/#{mix_id}.json", __dir__)
+    halt 404, { error: "Mixed style '#{mix_id}' not available" }.to_json unless File.exist?(mixed_file)
+    
+    JSON.parse(File.read(mixed_file))
   end
   
   def get_styles_data
@@ -47,7 +50,7 @@ get '/' do
   slim :index
 end
 
-get '/api/styles' do
+get '/styles' do
   content_type :json
   {
     available_styles: get_styles_data
@@ -63,6 +66,10 @@ get '/refresh' do
   Thread.new do
     begin
       StyleDownloader.download_all
+      StyleMixer.mix_all_styles
+      LOGGER.info "Styles refreshed and mixed successfully"
+    rescue => e
+      LOGGER.error "Error refreshing styles: #{e.message}"
     end
   end
   redirect '/'
