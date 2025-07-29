@@ -9,5 +9,5 @@ styles:
     id: 'mix_style2'
     name: "Mix Style 2"
     sources:
-      - https://example.com/styles/style1
       - https://example.com/styles/style2
+      - https://example.com/styles/style3
