@@ -1,0 +1,54 @@
+.header
+  h1 Mapbox Style Mixer
+  p Сервис для объединения и управления Mapbox стилями
+
+.section
+  .section-title Статистика сервиса
+  .stats-grid
+    .stat-box
+      .stat-number = @styles.length
+      .stat-desc Доступных стилей
+    .stat-box
+      .stat-number = @total_sources
+      .stat-desc Источников всего
+    .stat-box
+      .stat-number 
+        - hours = (@uptime / 3600).to_i
+        - minutes = ((@uptime % 3600) / 60).to_i
+        = "#{hours}ч #{minutes}м"
+      .stat-desc Время работы
+
+.section
+  .section-title 
+    | Доступные стили
+    a.btn.refresh-btn href="/refresh" style="float: right;" Обновить стили
+  .styles-container
+    - @styles.each do |style|
+      .style-card
+        .style-header
+          .style-name = style[:name]
+          .style-id = style[:id]
+        .style-description 
+          | Стиль-композиция из #{style[:sources_count]} источников
+        .style-stats
+          .stat-item
+            span.stat-label ID: 
+            span.stat-value = style[:id]
+          .stat-item
+            span.stat-label Источников: 
+            span.stat-value = style[:sources_count]
+          .stat-item
+            span.stat-label Эндпоинт: 
+            span.stat-value = style[:endpoint]
+          .stat-item
+            span.stat-label Статус: 
+            span.stat-value.status-ok ● Доступен
+        .style-actions
+          a.btn.btn-primary href=style[:endpoint] target="_blank" Получить JSON
+
+- if @refresh_message
+  .section
+    - if @refresh_message[:success]
+      .success-message = @refresh_message[:message]
+    - else
+      .error-message = @refresh_message[:message] 
