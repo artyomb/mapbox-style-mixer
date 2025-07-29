@@ -16,13 +16,13 @@ module StyleDownloader
     FileUtils.mkdir_p([raw_dir, fonts_dir, sprites_dir])
 
     config['styles'].each do |mix_id, mix_config|
-      puts "Processing mix style: #{mix_id}"
+      LOGGER.info "Processing mix style: #{mix_id}"
       
       all_fontstacks = []
       all_sprites = []
       
       mix_config['sources'].each_with_index do |source_url, index|
-        puts "  Downloading source #{index + 1}: #{source_url}"
+        LOGGER.debug "Downloading source #{index + 1}: #{source_url}"
         resp = Faraday.get(source_url)
         raise "Failed to fetch #{source_url}" unless resp.success?
         style_json = JSON.parse(resp.body)
@@ -51,7 +51,7 @@ module StyleDownloader
       all_fontstacks.uniq.each do |fontstack|
         next if Dir.exist?(File.join(fonts_dir, fontstack))
         
-        puts "  Downloading fonts for: #{fontstack}"
+        LOGGER.info "Downloading fonts for: #{fontstack}"
         first_style = JSON.parse(Faraday.get(mix_config['sources'].first).body)
         next unless (glyphs_url = first_style['glyphs'])
         

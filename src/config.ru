@@ -13,9 +13,9 @@ START_TIME = Time.now
 
 begin
   StyleDownloader.download_all
-  puts "Styles successfully loaded on startup"
+  LOGGER.info "Styles successfully loaded on startup"
 rescue => e
-  puts "Error loading styles on startup: #{e.message}"
+  LOGGER.error "Error loading styles on startup: #{e.message}"
 end
 
 helpers do
