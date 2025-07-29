@@ -7,7 +7,7 @@ require 'parallel'
 
 module StyleDownloader
   def self.download_all
-    config = YAML.load_file(File.expand_path('styles_config.yaml', __dir__))
+    config = YAML.load_file('/configs/styles_config.yaml')
     raw_dir = File.expand_path('raw_styles', __dir__)
     fonts_dir = File.expand_path('fonts', __dir__)
     sprites_dir = File.expand_path('sprites', __dir__)

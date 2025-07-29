@@ -8,7 +8,7 @@ require_relative 'style_downloader'
 
 StackServiceBase.rack_setup self
 
-CONFIG = YAML.load_file(File.expand_path('styles_config.yaml', __dir__))
+CONFIG = YAML.load_file('/configs/styles_config.yaml')
 START_TIME = Time.now
 
 Thread.new do
