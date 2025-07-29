@@ -11,8 +11,11 @@ StackServiceBase.rack_setup self
 CONFIG = YAML.load_file(File.expand_path('styles_config.yaml', __dir__))
 START_TIME = Time.now
 
-begin
-  StyleDownloader.download_all
+Thread.new do
+  sleep 60
+  begin
+    StyleDownloader.download_all
+  end
 end
 
 helpers do
@@ -57,10 +60,12 @@ get '/styles/:style' do
 end
 
 get '/refresh' do
-  StyleDownloader.download_all
+  Thread.new do
+    begin
+      StyleDownloader.download_all
+    end
+  end
   redirect '/'
-rescue => e
-  halt 500, "Ошибка обновления: #{e.message}"
 end
 
 run Sinatra::Application
