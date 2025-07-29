@@ -3,13 +3,11 @@ styles:
     id: 'mix_style1'
     name: "Mix Style 1"
     sources:
-      - https://tiles.weather.gis-master.ru/styles/weather/weather
-      - https://tiles.weather.gis-master.ru/styles/weather/weather
-      - https://tiles.weather.gis-master.ru/styles/weather/weather
+      - https://example.com/styles/style1
 
   mix_style2:
     id: 'mix_style2'
     name: "Mix Style 2"
     sources:
-      - https://tiles.weather.gis-master.ru/styles/weather/weather
-      - https://tiles.weather.gis-master.ru/styles/weather/weather
+      - https://example.com/styles/style1
+      - https://example.com/styles/style2
