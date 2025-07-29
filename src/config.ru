@@ -11,11 +11,11 @@ StackServiceBase.rack_setup self
 CONFIG = YAML.load_file('/configs/styles_config.yaml')
 START_TIME = Time.now
 
-Thread.new do
-  sleep 60
-  begin
-    StyleDownloader.download_all
-  end
+begin
+  StyleDownloader.download_all
+  puts "Styles successfully loaded on startup"
+rescue => e
+  puts "Error loading styles on startup: #{e.message}"
 end
 
 helpers do
