@@ -44,11 +44,4 @@
             span.stat-label Статус: 
             span.stat-value.status-ok ● Доступен
         .style-actions
-          a.btn.btn-primary href=style[:endpoint] target="_blank" Получить JSON
-
-- if @refresh_message
-  .section
-    - if @refresh_message[:success]
-      .success-message = @refresh_message[:message]
-    - else
-      .error-message = @refresh_message[:message] 
+          a.btn.btn-primary href=style[:endpoint] target="_blank" Получить JSON 
