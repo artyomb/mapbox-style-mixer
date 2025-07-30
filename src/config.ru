@@ -4,13 +4,14 @@ require 'json'
 require 'faraday'
 require 'stack-service-base'
 require 'slim'
-require_relative 'style_downloader'
-require_relative 'style_mixer'
 
 StackServiceBase.rack_setup self
 
-CONFIG = YAML.load_file('/configs/styles_config.yaml')
+$config = YAML.load_file(ENV['CONFIG_PATH'] || File.expand_path('configs/styles_config.yaml', __dir__))
 START_TIME = Time.now
+
+require_relative 'style_downloader'
+require_relative 'style_mixer'
 
 begin
   StyleDownloader.download_all
@@ -22,7 +23,7 @@ end
 
 helpers do
   def fetch_style(mix_id)
-    mix_config = CONFIG['styles'][mix_id]
+    mix_config = $config['styles'][mix_id]
     halt 404, { error: "Style '#{mix_id}' not found" }.to_json unless mix_config
     
     mixed_file = File.expand_path("mixed_styles/#{mix_id}.json", __dir__)
@@ -32,12 +33,12 @@ helpers do
   end
   
   def get_styles_data
-    CONFIG['styles'].keys.map do |style_id|
+    $config['styles'].keys.map do |style_id|
       {
         id: style_id,
-        name: CONFIG['styles'][style_id]['name'],
+        name: $config['styles'][style_id]['name'],
         endpoint: "/styles/#{style_id}",
-        sources_count: CONFIG['styles'][style_id]['sources'].length
+        sources_count: $config['styles'][style_id]['sources'].length
       }
     end
   end
@@ -65,6 +66,7 @@ end
 get '/refresh' do
   Thread.new do
     begin
+      $config = YAML.load_file(ENV['CONFIG_PATH'] || File.expand_path('configs/styles_config.yaml', __dir__))
       StyleDownloader.download_all
       StyleMixer.mix_all_styles
       LOGGER.info "Styles refreshed and mixed successfully"

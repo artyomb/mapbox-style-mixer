@@ -10,5 +10,7 @@ services:
         - type=gha,scope=mapbox-style-mixer,mode=max
     ports:
       - 7000:7000
+    environment:
+      - CONFIG_PATH=/configs/styles_config.yaml
     volumes:
       - ../src/configs:/configs

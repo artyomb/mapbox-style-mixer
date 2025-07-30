@@ -178,7 +178,7 @@ module StyleMixer
   end
   
   def self.load_config
-    YAML.load_file('/configs/styles_config.yaml')
+    $config
   end
   
   def self.deep_dup(obj)
