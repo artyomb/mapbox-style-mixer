@@ -20,6 +20,7 @@ module StyleDownloader
       
       all_fontstacks = []
       all_sprites = []
+      all_glyphs_urls = []
       
       mix_config['sources'].each_with_index do |source_url, index|
         LOGGER.debug "Downloading source #{index + 1}: #{source_url}"
@@ -35,7 +36,8 @@ module StyleDownloader
         
         if style_json['glyphs']
           fontstacks = style_json['layers'].map { |l| l.dig('layout', 'text-font') }.compact.flatten.uniq
-          all_fontstacks.concat(fontstacks)
+          all_fontstacks.concat(fontstacks.map { |f| { fontstack: f, style_id: style_id } })
+          all_glyphs_urls << style_json['glyphs'] unless all_glyphs_urls.include?(style_json['glyphs'])
         end
       end
       
@@ -48,28 +50,39 @@ module StyleDownloader
         end
       end
       
-      all_fontstacks.uniq.each do |fontstack|
-        next if Dir.exist?(File.join(fonts_dir, fontstack))
+      all_fontstacks.uniq { |f| "#{f[:style_id]}_#{f[:fontstack]}" }.each do |font_info|
+        fontstack = font_info[:fontstack]
+        style_id = font_info[:style_id]
+        font_dir = File.join(fonts_dir, "#{style_id}_#{fontstack}")
         
-        LOGGER.info "Downloading fonts for: #{fontstack}"
-        first_style = JSON.parse(Faraday.get(mix_config['sources'].first).body)
-        next unless (glyphs_url = first_style['glyphs'])
+        next if Dir.exist?(font_dir)
+        
+        LOGGER.info "Downloading fonts for: #{fontstack} (style: #{style_id})"
         
         ranges = (0..65535).step(256).map { |start| "#{start}-#{start+255}" }
         enc = URI.encode_www_form_component(fontstack)
         
         Parallel.each(ranges, in_threads: 8) do |range|
-          dir = File.join(fonts_dir, fontstack)
-          FileUtils.mkdir_p(dir)
+          FileUtils.mkdir_p(font_dir)
           fname = "#{range}.pbf"
-          url1 = glyphs_url.sub('{fontstack}', enc).sub('{range}', range)
-          url1 += '.pbf' unless url1.end_with?('.pbf')
-          r = Faraday.get(url1)
-          unless r.success?
+          
+          downloaded = false
+          all_glyphs_urls.each do |glyphs_url|
+            url = glyphs_url.sub('{fontstack}', enc).sub('{range}', range)
+            url += '.pbf' unless url.end_with?('.pbf')
+            r = Faraday.get(url)
+            if r.success?
+              File.write(File.join(font_dir, fname), r.body)
+              downloaded = true
+              break
+            end
+          end
+
+          unless downloaded
             url2 = "https://demotiles.maplibre.org/font/#{enc}/#{fname}"
             r = Faraday.get(url2)
+            File.write(File.join(font_dir, fname), r.body) if r.success?
           end
-          File.write(File.join(dir, fname), r.body) if r.success?
         end
       end
     end
