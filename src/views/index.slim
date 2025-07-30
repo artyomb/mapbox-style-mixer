@@ -1,27 +1,27 @@
 .header
   h1 Mapbox Style Mixer
-  p Сервис для объединения и управления Mapbox стилями
+  p Service for combining and managing Mapbox styles
 
 .section
-  .section-title Статистика сервиса
+  .section-title Service Statistics
   .stats-grid
     .stat-box
       .stat-number = @styles.length
-      .stat-desc Доступных стилей
+      .stat-desc Available styles
     .stat-box
       .stat-number = @total_sources
-      .stat-desc Источников всего
+      .stat-desc Total sources
     .stat-box
       .stat-number 
         - hours = (@uptime / 3600).to_i
         - minutes = ((@uptime % 3600) / 60).to_i
-        = "#{hours}ч #{minutes}м"
-      .stat-desc Время работы
+        = "#{hours}h #{minutes}m"
+      .stat-desc Uptime
 
 .section
   .section-title 
-    | Доступные стили
-    a.btn.refresh-btn href="/refresh" style="float: right;" Обновить стили
+    | Available Styles
+    a.btn.refresh-btn href="/refresh" style="float: right;" Refresh Styles
   .styles-container
     - @styles.each do |style|
       .style-card
@@ -29,19 +29,21 @@
           .style-name = style[:name]
           .style-id = style[:id]
         .style-description 
-          | Стиль-композиция из #{style[:sources_count]} источников
+          | Style composition from #{style[:sources_count]} sources
         .style-stats
           .stat-item
             span.stat-label ID: 
             span.stat-value = style[:id]
           .stat-item
-            span.stat-label Источников: 
+            span.stat-label Sources: 
             span.stat-value = style[:sources_count]
           .stat-item
-            span.stat-label Эндпоинт: 
-            span.stat-value = style[:endpoint]
+            span.stat-label Endpoint: 
+            .endpoint-container
+              span.copy-icon 📄
+              span.endpoint-url = "#{request.base_url}#{style[:endpoint]}"
           .stat-item
-            span.stat-label Статус: 
-            span.stat-value.status-ok ● Доступен
+            span.stat-label Status: 
+            span.stat-value.status-ok ● Available
         .style-actions
-          a.btn.btn-primary href=style[:endpoint] target="_blank" Получить JSON 
+          a.btn.btn-primary href=style[:endpoint] target="_blank" Get JSON 

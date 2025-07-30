@@ -63,6 +63,44 @@ html
       | .stat-item { font-size: 12px; }
       | .stat-label { color: #808080; }
       | .stat-value { color: #6897bb; }
+      | .endpoint-container { 
+      |   display: inline-flex; 
+      |   align-items: center; 
+      |   gap: 6px; 
+      |   cursor: pointer;
+      |   padding: 2px 4px;
+      |   border-radius: 2px;
+      |   transition: all 0.2s ease;
+      |   margin-left: 4px;
+      | }
+      | .endpoint-container:hover { 
+      |   background: #4b4d4f; 
+      | }
+      | .endpoint-container.copy-success { 
+      |   background: #2d4a2d !important; 
+      |   border: 1px solid #6a9955;
+      | }
+      | .endpoint-url { 
+      |   color: #6897bb; 
+      |   font-family: 'Courier New', monospace;
+      |   font-size: 11px;
+      |   text-decoration: underline;
+      | }
+      | .copy-icon { 
+      |   color: #555555; 
+      |   font-size: 9px; 
+      |   flex-shrink: 0;
+      |   transition: color 0.2s;
+      |   opacity: 0.5;
+      | }
+      | .endpoint-container:hover .copy-icon { 
+      |   color: #808080; 
+      |   opacity: 0.8;
+      | }
+      | .copy-success .copy-icon { 
+      |   color: #6a9955 !important; 
+      |   opacity: 1 !important;
+      | }
       | .style-actions { margin-top: 12px; }
       | .btn { 
       |   display: inline-block;
@@ -134,3 +172,27 @@ html
   body
     .container
       == yield 
+    script
+      | document.addEventListener('DOMContentLoaded', function() {
+      |   document.querySelectorAll('.endpoint-container').forEach(function(container) {
+      |     container.addEventListener('click', function() {
+      |       const url = this.querySelector('.endpoint-url').textContent;
+      |       copyToClipboard(url, this);
+      |     });
+      |   });
+      | });
+      | 
+      | function copyToClipboard(text, container) {
+      |   navigator.clipboard.writeText(text).then(function() {
+      |     const copyIcon = container.querySelector('.copy-icon');
+      |     copyIcon.textContent = '✓';
+      |     container.classList.add('copy-success');
+      |     
+      |     setTimeout(() => {
+      |       copyIcon.textContent = '📄';
+      |       container.classList.remove('copy-success');
+      |     }, 2000);
+      |   }).catch(function(err) {
+      |     console.error('Could not copy text: ', err);
+      |   });
+      | } 
