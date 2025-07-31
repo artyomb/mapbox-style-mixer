@@ -102,4 +102,8 @@ get '/refresh' do
   redirect '/'
 end
 
+get '/map' do
+  slim :map, layout: false
+end
+
 run Sinatra::Application

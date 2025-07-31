@@ -21,7 +21,9 @@
 .section
   .section-title 
     | Available Styles
-    a.btn.refresh-btn href="/refresh" style="float: right;" Refresh Styles
+    .header-buttons
+      a.btn.refresh-btn href="/refresh" Refresh Styles
+      a.btn.map-btn href="/map" target="_blank" 🌍 Map Preview
   .styles-container
     - @styles.each do |style|
       .style-card
@@ -43,6 +45,7 @@
               span.copy-icon 📄
               span.endpoint-url = "#{request.base_url}#{style[:endpoint]}"
             a.btn.btn-small href=style[:endpoint] target="_blank" Open
+            a.btn.btn-small href="/map?style=#{style[:id]}" target="_blank" 🌍 Test
           .stat-item
             span.stat-label Status: 
             span.stat-value.status-ok ● Available

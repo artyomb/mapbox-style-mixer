@@ -65,6 +65,7 @@ GEM
       net-http-persistent (>= 4.0.4, < 5)
     faraday-retry (2.3.2)
       faraday (~> 2.0)
+    ffi (1.17.2-x86_64-linux-gnu)
     fiber-annotation (0.2.0)
     fiber-local (1.1.0)
       fiber-storage
@@ -341,6 +342,8 @@ GEM
     samovar (2.3.0)
       console (~> 1.0)
       mapping (~> 1.0)
+    sassc (2.4.0)
+      ffi (~> 1.9)
     securerandom (0.4.1)
     sinatra (4.1.1)
       logger (>= 1.6.0)
@@ -381,6 +384,7 @@ DEPENDENCIES
   parallel
   rack (~> 3.1.13)
   rackup (~> 2.2.1)
+  sassc
   sinatra
   slim
   stack-service-base
