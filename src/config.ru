@@ -103,7 +103,7 @@ get '/refresh' do
 end
 
 get '/map' do
-  slim :map, layout: false
+  slim :map, layout: :map_layout
 end
 
 run Sinatra::Application

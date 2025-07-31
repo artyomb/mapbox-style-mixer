@@ -2,205 +2,191 @@ ruby:
   proto = env['HTTP_X_FORWARDED_SCHEME'] || env['HTTP_X_FORWARDED_PROTO'] || (request.host =~ /localhost/ ? 'http' : 'https')
   base_url = "#{proto}://" + request.host_with_port + "/styles"
   
-  # Получаем стиль из параметра
   style_name = params[:style]
   style_url = style_name ? "#{base_url}/#{style_name}" : nil
 
-doctype html
-html
-  head
-    meta[charset="utf-8"]
-    title Mapbox Style Mixer - Map Preview
-    meta[name="viewport" content="width=device-width, initial-scale=1.0"]
-    link[href='https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.css' rel='stylesheet']
-    script[src='https://unpkg.com/maplibre-gl@5.0.1/dist/maplibre-gl.js']
-    sass:
-      body, html
-        margin: 0
-        padding: 0
-        width: 100%
-        height: 100%
-        background: #000
+- if style_name
+  .layer-controls
+    button.layer-button onclick="toggleAllLayers()" Toggle All
+    button.layer-button onclick="toggleBasemap()" Toggle Basemap
+    #layer-buttons
 
-      #map-container
-        position: relative
-        width: 100%
-        height: 100%
+#map-container
+  #map_base.map-layer
+  #map.map-layer
 
-      .map-layer
-        position: absolute
-        top: 0
-        left: 0
-        width: 100%
-        height: 100%
+javascript:
+  const base_url = '#{base_url}';
+  const style_url = '#{style_url}';
+  let showBasemap = true;
+  let layerStates = {};
+  let map = null;
+  let map_base = null;
+  
+  map_base = new maplibregl.Map({
+    container: 'map_base',
+    style: 'https://demotiles.maplibre.org/style.json',
+    center: [35.15, 47.41], 
+    zoom: 2,
+    attributionControl: false,
+    interactive: false,
+    trackResize: false,
+    validateStyle: false
+  });
+  map_base.triggerRepaint = () => {};
+  
+  map_base.on('load', () => {
+    map_base.setProjection({ type: 'globe' });
+  });
 
-      #map_base
-        pointer-events: none
+  map = new maplibregl.Map({
+    container: 'map',
+    style: style_url || 'https://demotiles.maplibre.org/style.json',
+    center: [35.15, 47.41], 
+    zoom: 2,
+    attributionControl: false,
+    validateStyle: false
+  });
 
-      .controls
-        position: absolute
-        top: 10px
-        left: 10px
-        z-index: 1000
-        background: rgba(0, 0, 0, 0.8)
-        padding: 10px
-        border-radius: 5px
-        color: white
+  map.addControl(new maplibregl.NavigationControl());
+  map.addControl(new maplibregl.GlobeControl(), 'top-right');
 
-      .controls a
-        color: #0ea8c8
-        text-decoration: none
-        margin-right: 15px
+  if (style_url) {
+    function syncMaps(map, map_base) {
+      map.on('move', () => {
+        const center = map.getCenter();
+        const zoom = map.getZoom();
+        const bearing = map.getBearing();
+        const pitch = map.getPitch();
 
-      .controls a:hover
-        text-decoration: underline
-
-      .style-info
-        background: rgba(0, 0, 0, 0.8)
-        color: white
-        padding: 10px
-        border-radius: 5px
-        margin-bottom: 10px
-
-      .toggle-basemap
-        position: absolute
-        top: 10px
-        right: 10px
-        z-index: 1000
-        background: rgba(0, 0, 0, 0.8)
-        padding: 10px
-        border-radius: 5px
-        color: white
-        border: none
-        cursor: pointer
-
-      .toggle-basemap:hover
-        background: rgba(0, 0, 0, 0.9)
-
-  body
-    .controls
-      a href="/" ← Back to Mixer
-      - if style_name
-        span Style: #{style_name}
-      - else
-        span No style selected
-
-    - if style_name
-      button.toggle-basemap onclick="toggleBasemap()" Toggle Basemap
-
-    #map-container
-      #map_base.map-layer
-      #map.map-layer
-
-    javascript:
-      const base_url = '#{base_url}';
-      const style_url = '#{style_url}';
-      let showBasemap = true;
-      
-      // Базовая карта (только для стилей)
-      const map_base = new maplibregl.Map({
-        container: 'map_base',
-        style: 'https://demotiles.maplibre.org/style.json',
-        center: [35.15, 47.41], 
-        zoom: 2,
-        attributionControl: false,
-        interactive: false,
-        trackResize: false,
-        validateStyle: false
+        map_base.jumpTo({center, zoom, bearing, pitch});
+        map_base.redraw();
+        map_base.resize();
       });
-      map_base.triggerRepaint = () => {};
-      
-      map_base.on('load', () => {
-        map_base.setProjection({ type: 'globe' });
-      });
+    }
 
-      // Основная карта
-      const map = new maplibregl.Map({
-        container: 'map',
-        style: style_url || 'https://demotiles.maplibre.org/style.json',
-        center: [35.15, 47.41], 
-        zoom: 2,
-        attributionControl: false,
-        validateStyle: false
-      });
+    syncMaps(map, map_base);
 
-      map.addControl(new maplibregl.NavigationControl());
-      map.addControl(new maplibregl.GlobeControl(), 'top-right');
+    map.on('projectiontransition', (e) => {
+      map_base.setProjection({ type: e.newProjection });
+      map_base.redraw();
+      map_base.resize();
+    });
+  }
 
-      // Синхронизация карт (только если есть стиль)
-      if (style_url) {
-        function syncMaps(map, map_base) {
-          map.on('move', () => {
-            const center = map.getCenter();
-            const zoom = map.getZoom();
-            const bearing = map.getBearing();
-            const pitch = map.getPitch();
+  function toggleBasemap() {
+    showBasemap = !showBasemap;
+    const basemapElement = document.getElementById('map_base');
+    basemapElement.style.display = showBasemap ? 'block' : 'none';
+  }
 
-            map_base.jumpTo({center, zoom, bearing, pitch});
-            map_base.redraw();
-            map_base.resize();
-          });
-        }
-
-        syncMaps(map, map_base);
-
-        // Синхронизация проекций
-        map.on('projectiontransition', (e) => {
-          map_base.setProjection({ type: e.newProjection });
-          map_base.redraw();
-          map_base.resize();
-        });
+  function toggleAllLayers() {
+    const allVisible = Object.values(layerStates).every(state => state);
+    const newState = !allVisible;
+    
+    Object.keys(layerStates).forEach(layerId => {
+      layerStates[layerId] = newState;
+      const visibility = newState ? 'visible' : 'none';
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, 'visibility', visibility);
       }
+    });
+    
+    updateLayerButtons();
+  }
 
-      // Функция переключения подложки
-      function toggleBasemap() {
-        showBasemap = !showBasemap;
-        const basemapElement = document.getElementById('map_base');
-        basemapElement.style.display = showBasemap ? 'block' : 'none';
+  function toggleLayer(layerId) {
+    layerStates[layerId] = !layerStates[layerId];
+    const visibility = layerStates[layerId] ? 'visible' : 'none';
+    
+    if (map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, 'visibility', visibility);
+    }
+    
+    updateLayerButtons();
+  }
+
+  function updateLayerButtons() {
+    Object.keys(layerStates).forEach(layerId => {
+      const button = document.getElementById(`layer-${layerId}`);
+      if (button) {
+        button.className = `layer-button ${layerStates[layerId] ? 'active' : 'inactive'}`;
       }
+    });
+  }
 
-      map.on('load', async () => {
-        map.setProjection({ type: 'globe' });
+  function createLayerButtons() {
+    if (!style_url) return;
+    
+    fetch(style_url)
+      .then(response => response.json())
+      .then(style => {
+        const layerButtonsContainer = document.getElementById('layer-buttons');
         
-        const popup = new maplibregl.Popup({closeButton: false, closeOnClick: false});
-
-        map.on('click', function (e) {
-          const features = this.queryRenderedFeatures(e.point);
-          if (features.length > 0) {
-            console.log('Clicked feature:', features[0]);
-          }
-        });
-
-        function popupFeature(features, e) {
-          let tt = (tooltip, feat) => tooltip?.replace(/\{([^}]+)\}/g, (match, prop) => {
-              let value = feat;
-              for (const p of prop.split('.')) { value = value?.[p]; }
-              return typeof value === 'object' ? JSON.stringify(value, null, 2) : (value || '');
+        if (style.layers) {
+          style.layers.forEach(layer => {
+            const button = document.createElement('button');
+            button.id = `layer-${layer.id}`;
+            button.className = 'layer-button active';
+            button.textContent = layer.id;
+            button.onclick = () => toggleLayer(layer.id);
+            
+            layerButtonsContainer.appendChild(button);
+            layerStates[layer.id] = true;
           });
-
-          let tooltips = features.map((feat) => {
-            return tt(feat.layer.metadata?.tooltip, feat) ||
-            tt(`<pre>"id": {id},\n"source": {source},\n"source-layer": {sourceLayer},\n"properties": {properties}</pre>`, feat);
-          });
-          popup.setLngLat(e.lngLat).setHTML(tooltips.join('<br>')).addTo(map);
         }
+      })
+      .catch(error => {
+        console.error('Error loading style:', error);
+      });
+  }
 
-        let timeout;
-        let point;
+  map.on('load', async () => {
+    map.setProjection({ type: 'globe' });
+    
+    if (style_url) {
+      createLayerButtons();
+    }
+    
+    const popup = new maplibregl.Popup({closeButton: false, closeOnClick: false});
 
-        map.on('mousemove', (e) => {
-          clearTimeout(timeout);
+    map.on('click', function (e) {
+      const features = this.queryRenderedFeatures(e.point);
+      if (features.length > 0) {
+        console.log('Clicked feature:', features[0]);
+      }
+    });
 
-          const features = map.queryRenderedFeatures(e.point);
+    function popupFeature(features, e) {
+      let tt = (tooltip, feat) => tooltip?.replace(/\{([^}]+)\}/g, (match, prop) => {
+          let value = feat;
+          for (const p of prop.split('.')) { value = value?.[p]; }
+          return typeof value === 'object' ? JSON.stringify(value, null, 2) : (value || '');
+      });
 
-          if (features.length > 0) {
-            map.getCanvas().style.cursor = 'crosshair';
-            timeout = setTimeout(() => popupFeature(features, e), 100);
-          } else {
-            map.getCanvas().style.cursor = '';
-            popup.remove();
-          }
-          if( point && !point.equals(e.point)) { popup.remove(); }
-          point = e.point.clone();
-        });
-      }); 
+      let tooltips = features.map((feat) => {
+        return tt(feat.layer.metadata?.tooltip, feat) ||
+        tt(`<pre>"id": {id},\n"source": {source},\n"source-layer": {sourceLayer},\n"properties": {properties}</pre>`, feat);
+      });
+      popup.setLngLat(e.lngLat).setHTML(tooltips.join('<br>')).addTo(map);
+    }
+
+    let timeout;
+    let point;
+
+    map.on('mousemove', (e) => {
+      clearTimeout(timeout);
+
+      const features = map.queryRenderedFeatures(e.point);
+
+      if (features.length > 0) {
+        map.getCanvas().style.cursor = 'crosshair';
+        timeout = setTimeout(() => popupFeature(features, e), 100);
+      } else {
+        map.getCanvas().style.cursor = '';
+        popup.remove();
+      }
+      if( point && !point.equals(e.point)) { popup.remove(); }
+      point = e.point.clone();
+    });
+  }); 
