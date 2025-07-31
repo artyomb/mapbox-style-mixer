@@ -38,12 +38,27 @@
             span.stat-label Sources: 
             span.stat-value = style[:sources_count]
           .stat-item
-            span.stat-label Endpoint: 
+            span.stat-label Style Endpoint: 
             .endpoint-container
               span.copy-icon 📄
               span.endpoint-url = "#{request.base_url}#{style[:endpoint]}"
+            a.btn.btn-small href=style[:endpoint] target="_blank" Open
           .stat-item
             span.stat-label Status: 
             span.stat-value.status-ok ● Available
-        .style-actions
-          a.btn.btn-primary href=style[:endpoint] target="_blank" Get JSON 
+          
+        .sprite-section
+          .sprite-title Sprites
+          .sprite-endpoints
+            .sprite-item
+              span.sprite-label PNG: 
+              .endpoint-container
+                span.copy-icon 📄
+                span.endpoint-url = "#{request.base_url}/sprite/#{style[:id]}.png"
+              a.btn.btn-small href="/sprite/#{style[:id]}.png" target="_blank" Open
+            .sprite-item
+              span.sprite-label JSON: 
+              .endpoint-container
+                span.copy-icon 📄
+                span.endpoint-url = "#{request.base_url}/sprite/#{style[:id]}.json"
+              a.btn.btn-small href="/sprite/#{style[:id]}.json" target="_blank" Open 
