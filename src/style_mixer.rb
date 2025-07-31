@@ -19,6 +19,9 @@ module StyleMixer
       %w[sources layers metadata].each { |type| send("merge_#{type}", mixed_style, style_data, prefix) }
     end
     
+    require_relative 'sprite_merger'
+    SpriteMerger.merge_sprites_for_mix(mix_id)
+    
     update_resource_urls(mixed_style, mix_id)
     save_mixed_style(mixed_style, mix_id)
     log_success(mixed_style)
@@ -156,7 +159,7 @@ module StyleMixer
   end
   
   def self.update_resource_urls(mixed_style, mix_id)
-    mixed_style['sprite'] = "/sprites/#{mix_id}/sprite"
+    mixed_style['sprite'] = "/sprite/#{mix_id}"
     mixed_style['glyphs'] = "/fonts/{fontstack}/{range}.pbf"
   end
   

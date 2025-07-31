@@ -12,6 +12,7 @@ START_TIME = Time.now
 
 require_relative 'style_downloader'
 require_relative 'style_mixer'
+require_relative 'sprite_merger'
 
 begin
   StyleDownloader.download_all
@@ -61,6 +62,30 @@ end
 get '/styles/:style' do
   content_type :json
   fetch_style(params[:style]).to_json
+end
+
+get '/sprite/:mix_id.json' do
+  mix_id = params[:mix_id]
+  sprite_file = File.expand_path("sprite/#{mix_id}.json", __dir__)
+  
+  if File.exist?(sprite_file)
+    content_type :json
+    File.read(sprite_file)
+  else
+    halt 404, { error: "Sprite not found for mix '#{mix_id}'" }.to_json
+  end
+end
+
+get '/sprite/:mix_id.png' do
+  mix_id = params[:mix_id]
+  sprite_file = File.expand_path("sprite/#{mix_id}.png", __dir__)
+  
+  if File.exist?(sprite_file)
+    content_type :png
+    File.read(sprite_file)
+  else
+    halt 404, { error: "Sprite image not found for mix '#{mix_id}'" }.to_json
+  end
 end
 
 get '/refresh' do
