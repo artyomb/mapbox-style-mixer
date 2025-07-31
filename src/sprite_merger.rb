@@ -30,6 +30,8 @@ module SpriteMerger
     
     LOGGER.info "Starting merging of all sprites"
     
+    prepare_sprite_directory
+    
     config['styles'].each do |mix_id, mix_config|
       merge_sprites_for_mix(mix_id)
     rescue => e
@@ -50,6 +52,13 @@ module SpriteMerger
     output_dir = File.expand_path('sprite', __dir__)
     FileUtils.mkdir_p(output_dir)
     output_dir
+  end
+  
+  def self.prepare_sprite_directory
+    sprite_dir = File.expand_path('sprite', __dir__)
+    
+    FileUtils.rm_rf(sprite_dir) if Dir.exist?(sprite_dir)
+    FileUtils.mkdir_p(sprite_dir)
   end
   
   def self.collect_sprite_data(sprite_dirs)
