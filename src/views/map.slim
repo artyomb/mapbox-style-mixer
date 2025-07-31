@@ -1,9 +1,6 @@
 ruby:
-  proto = env['HTTP_X_FORWARDED_SCHEME'] || env['HTTP_X_FORWARDED_PROTO'] || (request.host =~ /localhost/ ? 'http' : 'https')
-  base_url = "#{proto}://" + request.host_with_port + "/styles"
-  
   style_name = params[:style]
-  style_url = style_name ? "#{base_url}/#{style_name}" : nil
+  style_url = style_name ? "#{request.base_url}/styles/#{style_name}" : nil
 
 - if style_name
   .layer-controls
@@ -16,7 +13,6 @@ ruby:
   #map.map-layer
 
 javascript:
-  const base_url = '#{base_url}';
   const style_url = '#{style_url}';
   let showBasemap = true;
   let layerStates = {};

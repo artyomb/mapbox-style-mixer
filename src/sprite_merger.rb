@@ -88,8 +88,8 @@ module SpriteMerger
       
       merged_sprite, merged_json = merge_multiple_sprites(sprite_data)
       
-      merged_sprite.save(File.join(output_dir, "#{mix_id}.png"))
-      File.write(File.join(output_dir, "#{mix_id}.json"), JSON.pretty_generate(merged_json))
+      merged_sprite.save(File.join(output_dir, "#{mix_id}_sprite.png"))
+      File.write(File.join(output_dir, "#{mix_id}_sprite.json"), JSON.pretty_generate(merged_json))
       
       LOGGER.debug "Saved merged sprite: #{merged_sprite.width}x#{merged_sprite.height}"
       true
@@ -103,8 +103,8 @@ module SpriteMerger
     source_png = File.join(sprite_info[:dir], 'sprite.png')
     source_json = File.join(sprite_info[:dir], 'sprite.json')
     
-    FileUtils.cp(source_png, File.join(output_dir, "#{mix_id}.png"))
-    FileUtils.cp(source_json, File.join(output_dir, "#{mix_id}.json"))
+    FileUtils.cp(source_png, File.join(output_dir, "#{mix_id}_sprite.png"))
+    FileUtils.cp(source_json, File.join(output_dir, "#{mix_id}_sprite.json"))
     
     LOGGER.debug "Copied single sprite from #{sprite_info[:dir]}"
     true

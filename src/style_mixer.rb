@@ -159,7 +159,7 @@ module StyleMixer
   end
   
   def self.update_resource_urls(mixed_style, mix_id)
-    mixed_style['sprite'] = "/sprite/#{mix_id}"
+    mixed_style['sprite'] = "/sprite/#{mix_id}_sprite"
     mixed_style['glyphs'] = "/fonts/{fontstack}/{range}.pbf"
   end
   

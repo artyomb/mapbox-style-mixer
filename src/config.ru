@@ -61,7 +61,13 @@ end
 
 get '/styles/:style' do
   content_type :json
-  fetch_style(params[:style]).to_json
+  style = fetch_style(params[:style])
+  
+  style_json = style.to_json
+  style_json.gsub!('"/sprite/', "\"#{request.base_url}/sprite/")
+  style_json.gsub!('"/fonts/', "\"#{request.base_url}/fonts/")
+  
+  style_json
 end
 
 get '/sprite/:mix_id.json' do
