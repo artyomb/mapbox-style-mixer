@@ -1,6 +1,6 @@
 FROM ruby:3.4.4-slim-bookworm AS base
 
-RUN apt update && apt --fix-missing install -y build-essential pkg-config bash curl cmake libssl-dev \
+RUN apt update && apt --fix-missing install -y build-essential pkg-config bash curl cmake libssl-dev imagemagick \
      && rm -rf /var/lib/apt/lists/*
 
 RUN echo 'gem: --no-document' >> ~/.gemrc
@@ -13,7 +13,7 @@ RUN bundle install --jobs $(nproc) --retry=3 && \
     bundle clean --force && rm -rf /usr/local/bundle/cache/*
 
 FROM ruby:3.4.4-slim-bookworm AS deploy
-RUN apt update && apt install --fix-missing -y bash curl libssl-dev \
+RUN apt update && apt install --fix-missing -y bash curl libssl-dev imagemagick \
      && rm -rf /var/lib/apt/lists/*
 
 COPY --from=base /usr/local/bundle /usr/local/bundle

@@ -1,6 +1,5 @@
 require 'json'
 require 'fileutils'
-require 'chunky_png'
 
 module SpriteMerger
   def self.merge_sprites_for_mix(mix_id)
@@ -9,16 +8,14 @@ module SpriteMerger
     sprite_dirs = find_sprite_dirs(mix_id)
     return log_no_sprites(mix_id) if sprite_dirs.empty?
     
-    output_dir = create_output_dir
-    sprite_data = collect_sprite_data(sprite_dirs)
+    sprite_files = collect_sprite_files(sprite_dirs)
+    return log_no_sprites(mix_id) if sprite_files.empty?
     
-    return log_no_sprites(mix_id) if sprite_data.empty?
-    
-    success = merge_sprites_with_chunky_png(sprite_data, output_dir, mix_id)
+    success = merge_sprites_with_imagemagick(sprite_files, mix_id)
     
     if success
-      LOGGER.info "Successfully merged #{sprite_data.length} sprites for #{mix_id}"
-      { png: File.join(output_dir, "#{mix_id}.png"), json: File.join(output_dir, "#{mix_id}.json") }
+      LOGGER.info "Successfully merged #{sprite_files.length} sprites for #{mix_id}"
+      { png: File.join(output_dir, "#{mix_id}_sprite.png"), json: File.join(output_dir, "#{mix_id}_sprite.json") }
     else
       LOGGER.error "Failed to merge sprites for #{mix_id}"
       nil
@@ -26,13 +23,10 @@ module SpriteMerger
   end
   
   def self.merge_all_sprites
-    config = $config
-    
     LOGGER.info "Starting merging of all sprites"
-    
     prepare_sprite_directory
     
-    config['styles'].each do |mix_id, mix_config|
+    $config['styles'].each do |mix_id, mix_config|
       merge_sprites_for_mix(mix_id)
     rescue => e
       LOGGER.error "Error merging sprites for #{mix_id}: #{e.message}"
@@ -48,7 +42,7 @@ module SpriteMerger
     Dir.glob("#{sprites_dir}/#{mix_id}_*").select { |d| Dir.exist?(d) }
   end
   
-  def self.create_output_dir
+  def self.output_dir
     output_dir = File.expand_path('sprite', __dir__)
     FileUtils.mkdir_p(output_dir)
     output_dir
@@ -56,12 +50,11 @@ module SpriteMerger
   
   def self.prepare_sprite_directory
     sprite_dir = File.expand_path('sprite', __dir__)
-    
     FileUtils.rm_rf(sprite_dir) if Dir.exist?(sprite_dir)
     FileUtils.mkdir_p(sprite_dir)
   end
   
-  def self.collect_sprite_data(sprite_dirs)
+  def self.collect_sprite_files(sprite_dirs)
     sprite_dirs.map do |dir|
       png_file = File.join(dir, 'sprite.png')
       json_file = File.join(dir, 'sprite.json')
@@ -69,10 +62,9 @@ module SpriteMerger
       next unless File.exist?(png_file) && File.exist?(json_file)
       
       begin
-        png = ChunkyPNG::Image.from_file(png_file)
-        json = JSON.parse(File.read(json_file))
-        LOGGER.debug "Loaded sprite from #{dir}: #{png.width}x#{png.height}"
-        { png: png, json: json, dir: dir }
+        json_data = JSON.parse(File.read(json_file))
+        LOGGER.debug "Found sprite from #{dir}"
+        { png_file: png_file, json_file: json_file, json_data: json_data, dir: dir }
       rescue => e
         LOGGER.error "Failed to load sprite from #{dir}: #{e.message}"
         nil
@@ -80,18 +72,24 @@ module SpriteMerger
     end.compact
   end
   
-  def self.merge_sprites_with_chunky_png(sprite_data, output_dir, mix_id)
-    return false if sprite_data.empty?
+  def self.merge_sprites_with_imagemagick(sprite_files, mix_id)
+    return false if sprite_files.empty?
     
     begin
-      return copy_single_sprite(sprite_data.first, output_dir, mix_id) if sprite_data.length == 1
+      return copy_single_sprite(sprite_files.first, mix_id) if sprite_files.length == 1
       
-      merged_sprite, merged_json = merge_multiple_sprites(sprite_data)
+      output_png = File.join(output_dir, "#{mix_id}_sprite.png")
+      output_json = File.join(output_dir, "#{mix_id}_sprite.json")
       
-      merged_sprite.save(File.join(output_dir, "#{mix_id}_sprite.png"))
-      File.write(File.join(output_dir, "#{mix_id}_sprite.json"), JSON.pretty_generate(merged_json))
+      png_files = sprite_files.map { |sf| sf[:png_file] }
       
-      LOGGER.debug "Saved merged sprite: #{merged_sprite.width}x#{merged_sprite.height}"
+      success = merge_png_files_imagemagick(png_files, output_png)
+      return false unless success
+      
+      merged_json = merge_json_metadata(sprite_files, png_files)
+      File.write(output_json, JSON.pretty_generate(merged_json))
+      
+      LOGGER.debug "Saved merged sprite using ImageMagick"
       true
     rescue => e
       LOGGER.error "Error merging sprites: #{e.message}"
@@ -99,33 +97,34 @@ module SpriteMerger
     end
   end
   
-  def self.copy_single_sprite(sprite_info, output_dir, mix_id)
-    source_png = File.join(sprite_info[:dir], 'sprite.png')
-    source_json = File.join(sprite_info[:dir], 'sprite.json')
+  def self.merge_png_files_imagemagick(png_files, output_file)
+    files_list = png_files.join(' ')
+    command = "convert #{files_list} -append #{output_file}"
     
-    FileUtils.cp(source_png, File.join(output_dir, "#{mix_id}_sprite.png"))
-    FileUtils.cp(source_json, File.join(output_dir, "#{mix_id}_sprite.json"))
+    LOGGER.debug "Running ImageMagick: #{command}"
     
-    LOGGER.debug "Copied single sprite from #{sprite_info[:dir]}"
-    true
+    result = system(command)
+    
+    if result && File.exist?(output_file)
+      LOGGER.debug "ImageMagick merge successful"
+      true
+    else
+      LOGGER.error "ImageMagick merge failed"
+      false
+    end
   end
   
-  def self.merge_multiple_sprites(sprite_data)
-    total_width = sprite_data.map { |s| s[:png].width }.max
-    total_height = sprite_data.map { |s| s[:png].height }.sum
-    
-    merged_sprite = ChunkyPNG::Image.new(total_width, total_height, ChunkyPNG::Color::TRANSPARENT)
+  def self.merge_json_metadata(sprite_files, png_files)
     merged_json = {}
-    
     current_y = 0
     
-    sprite_data.each do |sprite_info|
-      png = sprite_info[:png]
-      json = sprite_info[:json]
+    sprite_files.each_with_index do |sprite_file, index|
+      json_data = sprite_file[:json_data]
+      png_file = png_files[index]
       
-      merged_sprite.compose!(png, 0, current_y)
+      png_height = get_png_height(png_file)
       
-      json.each do |icon_name, icon_data|
+      json_data.each do |icon_name, icon_data|
         merged_json[icon_name] = {
           'width' => icon_data['width'],
           'height' => icon_data['height'],
@@ -135,14 +134,33 @@ module SpriteMerger
         }
       end
       
-      current_y += png.height
+      current_y += png_height
     end
     
-    [merged_sprite, merged_json]
+    merged_json
+  end
+  
+  def self.get_png_height(png_file)
+    result = `identify -format "%h" #{png_file}`.strip.to_i
+    result > 0 ? result : 0
+  rescue => e
+    LOGGER.error "Failed to get PNG height for #{png_file}: #{e.message}"
+    0
+  end
+  
+  def self.copy_single_sprite(sprite_file, mix_id)
+    source_png = sprite_file[:png_file]
+    source_json = sprite_file[:json_file]
+    
+    FileUtils.cp(source_png, File.join(output_dir, "#{mix_id}_sprite.png"))
+    FileUtils.cp(source_json, File.join(output_dir, "#{mix_id}_sprite.json"))
+    
+    LOGGER.debug "Copied single sprite from #{sprite_file[:dir]}"
+    true
   end
   
   def self.log_no_sprites(mix_id)
     LOGGER.warn "No sprite directories found for #{mix_id}"
     nil
   end
-end 
+end
