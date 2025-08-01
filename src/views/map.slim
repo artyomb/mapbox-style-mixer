@@ -2,6 +2,11 @@ ruby:
   style_name = params[:style]
   style_url = style_name ? "#{request.base_url}/styles/#{style_name}" : nil
 
+#loading-overlay
+  .loading-content
+    .spinner
+    .loading-text Loading map...
+
 - if style_name
   .layer-controls
     button.layer-button onclick="toggleAllLayers()" Toggle All
@@ -18,55 +23,170 @@ javascript:
   let layerStates = {};
   let map = null;
   let map_base = null;
+  let styleLoaded = false;
+  let resourcesLoaded = 0;
+  let totalResources = 0;
   
-  map_base = new maplibregl.Map({
-    container: 'map_base',
-    style: 'https://demotiles.maplibre.org/style.json',
-    center: [35.15, 47.41], 
-    zoom: 2,
-    attributionControl: false,
-    interactive: false,
-    trackResize: false,
-    validateStyle: false
-  });
-  map_base.triggerRepaint = () => {};
+  function showLoading() {
+    document.getElementById('loading-overlay').style.display = 'flex';
+  }
   
-  map_base.on('load', () => {
-    map_base.setProjection({ type: 'globe' });
-  });
+  function hideLoading() {
+    document.getElementById('loading-overlay').style.display = 'none';
+  }
+  
+  function updateLoadingProgress() {
+    if (totalResources > 0) {
+      const progress = Math.round((resourcesLoaded / totalResources) * 100);
+      document.querySelector('.loading-text').textContent = `Loading map... ${progress}%`;
+    }
+  }
+  
+  function checkStyleResources(style) {
+    totalResources = 0;
+    resourcesLoaded = 0;
+    const promises = [];
+    
+    if (style.sprite) {
+      totalResources += 2;
+      promises.push(
+        Promise.all([
+          fetch(style.sprite + '.json').catch(() => {}),
+          fetch(style.sprite + '.png').catch(() => {})
+        ]).then(() => {
+          resourcesLoaded += 2;
+          updateLoadingProgress();
+        })
+      );
+    }
+    
+    if (style.glyphs) {
+      for (let i = 0; i < 256; i += 256) {
+        const range = `${i}-${Math.min(i + 255, 65535)}`;
+        totalResources++;
+        promises.push(
+          fetch(style.glyphs.replace('{fontstack}', 'Open Sans Regular,Arial Unicode MS Regular').replace('{range}', range))
+            .then(() => { resourcesLoaded++; updateLoadingProgress(); })
+            .catch(() => { resourcesLoaded++; updateLoadingProgress(); })
+        );
+      }
+    }
+    
+    if (totalResources === 0) {
+      styleLoaded = true;
+      initializeMap();
+    } else {
+      Promise.all(promises).then(() => {
+        styleLoaded = true;
+        initializeMap();
+      });
+    }
+  }
+  
+  function initializeMap() {
+    if (!styleLoaded) return;
+    
+    map_base = new maplibregl.Map({
+      container: 'map_base',
+      style: 'https://demotiles.maplibre.org/style.json',
+      center: [35.15, 47.41], 
+      zoom: 2,
+      attributionControl: false,
+      interactive: false,
+      trackResize: false,
+      validateStyle: false
+    });
+    map_base.triggerRepaint = () => {};
+    
+    map_base.on('load', () => {
+      map_base.setProjection({ type: 'globe' });
+    });
 
-  map = new maplibregl.Map({
-    container: 'map',
-    style: style_url || 'https://demotiles.maplibre.org/style.json',
-    center: [35.15, 47.41], 
-    zoom: 2,
-    attributionControl: false,
-    validateStyle: false
-  });
+    map = new maplibregl.Map({
+      container: 'map',
+      style: style_url || 'https://demotiles.maplibre.org/style.json',
+      center: [35.15, 47.41], 
+      zoom: 2,
+      attributionControl: false,
+      validateStyle: false
+    });
 
-  map.addControl(new maplibregl.NavigationControl());
-  map.addControl(new maplibregl.GlobeControl(), 'top-right');
+    map.addControl(new maplibregl.NavigationControl());
+    map.addControl(new maplibregl.GlobeControl(), 'top-right');
 
-  if (style_url) {
-    function syncMaps(map, map_base) {
-      map.on('move', () => {
-        const center = map.getCenter();
-        const zoom = map.getZoom();
-        const bearing = map.getBearing();
-        const pitch = map.getPitch();
+    if (style_url) {
+      function syncMaps(map, map_base) {
+        map.on('move', () => {
+          const center = map.getCenter();
+          const zoom = map.getZoom();
+          const bearing = map.getBearing();
+          const pitch = map.getPitch();
 
-        map_base.jumpTo({center, zoom, bearing, pitch});
+          map_base.jumpTo({center, zoom, bearing, pitch});
+          map_base.redraw();
+          map_base.resize();
+        });
+      }
+
+      syncMaps(map, map_base);
+
+      map.on('projectiontransition', (e) => {
+        map_base.setProjection({ type: e.newProjection });
         map_base.redraw();
         map_base.resize();
       });
     }
 
-    syncMaps(map, map_base);
+    map.on('load', async () => {
+      map.setProjection({ type: 'globe' });
+      
+      if (style_url) {
+        createLayerButtons();
+      }
+      
+      const popup = new maplibregl.Popup({closeButton: false, closeOnClick: false});
 
-    map.on('projectiontransition', (e) => {
-      map_base.setProjection({ type: e.newProjection });
-      map_base.redraw();
-      map_base.resize();
+      map.on('click', function (e) {
+        const features = this.queryRenderedFeatures(e.point);
+        if (features.length > 0) {
+          console.log('Clicked feature:', features[0]);
+        }
+      });
+
+      function popupFeature(features, e) {
+        let tt = (tooltip, feat) => tooltip?.replace(/\{([^}]+)\}/g, (match, prop) => {
+            let value = feat;
+            for (const p of prop.split('.')) { value = value?.[p]; }
+            return typeof value === 'object' ? JSON.stringify(value, null, 2) : (value || '');
+        });
+
+        let tooltips = features.map((feat) => {
+          return tt(feat.layer.metadata?.tooltip, feat) ||
+          tt(`<pre>"id": {id},\n"source": {source},\n"source-layer": {sourceLayer},\n"properties": {properties}</pre>`, feat);
+        });
+        popup.setLngLat(e.lngLat).setHTML(tooltips.join('<br>')).addTo(map);
+      }
+
+      let timeout;
+      let point;
+
+      map.on('mousemove', (e) => {
+        clearTimeout(timeout);
+
+        const features = map.queryRenderedFeatures(e.point);
+
+        if (features.length > 0) {
+          map.getCanvas().style.cursor = 'crosshair';
+          timeout = setTimeout(() => popupFeature(features, e), 100);
+        } else {
+          map.getCanvas().style.cursor = '';
+          popup.remove();
+        }
+        if( point && !point.equals(e.point)) { popup.remove(); }
+        point = e.point.clone();
+      });
+      
+      hideLoading();
     });
   }
 
@@ -137,52 +257,20 @@ javascript:
       });
   }
 
-  map.on('load', async () => {
-    map.setProjection({ type: 'globe' });
-    
-    if (style_url) {
-      createLayerButtons();
-    }
-    
-    const popup = new maplibregl.Popup({closeButton: false, closeOnClick: false});
-
-    map.on('click', function (e) {
-      const features = this.queryRenderedFeatures(e.point);
-      if (features.length > 0) {
-        console.log('Clicked feature:', features[0]);
-      }
-    });
-
-    function popupFeature(features, e) {
-      let tt = (tooltip, feat) => tooltip?.replace(/\{([^}]+)\}/g, (match, prop) => {
-          let value = feat;
-          for (const p of prop.split('.')) { value = value?.[p]; }
-          return typeof value === 'object' ? JSON.stringify(value, null, 2) : (value || '');
+  showLoading();
+  
+  if (style_url) {
+    fetch(style_url)
+      .then(response => response.json())
+      .then(style => {
+        checkStyleResources(style);
+      })
+      .catch(error => {
+        console.error('Error loading style:', error);
+        styleLoaded = true;
+        initializeMap();
       });
-
-      let tooltips = features.map((feat) => {
-        return tt(feat.layer.metadata?.tooltip, feat) ||
-        tt(`<pre>"id": {id},\n"source": {source},\n"source-layer": {sourceLayer},\n"properties": {properties}</pre>`, feat);
-      });
-      popup.setLngLat(e.lngLat).setHTML(tooltips.join('<br>')).addTo(map);
-    }
-
-    let timeout;
-    let point;
-
-    map.on('mousemove', (e) => {
-      clearTimeout(timeout);
-
-      const features = map.queryRenderedFeatures(e.point);
-
-      if (features.length > 0) {
-        map.getCanvas().style.cursor = 'crosshair';
-        timeout = setTimeout(() => popupFeature(features, e), 100);
-      } else {
-        map.getCanvas().style.cursor = '';
-        popup.remove();
-      }
-      if( point && !point.equals(e.point)) { popup.remove(); }
-      point = e.point.clone();
-    });
-  }); 
+  } else {
+    styleLoaded = true;
+    initializeMap();
+  } 
