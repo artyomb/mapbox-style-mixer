@@ -53,7 +53,8 @@ module StyleDownloader
       all_fontstacks.uniq { |f| "#{f[:style_id]}_#{f[:fontstack]}" }.each do |font_info|
         fontstack = font_info[:fontstack]
         style_id = font_info[:style_id]
-        font_dir = File.join(fonts_dir, "#{style_id}_#{fontstack}")
+        style_dir = File.join(fonts_dir, style_id)
+        font_dir = File.join(style_dir, fontstack)
         
         next if Dir.exist?(font_dir)
         

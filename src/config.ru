@@ -94,6 +94,31 @@ get '/sprite/:mix_id.png' do
   end
 end
 
+get '/fonts/*/:range.pbf' do
+  fontstack = params[:splat].first
+  range = params[:range]
+  
+  LOGGER.debug "Font request: #{fontstack}, range: #{range}"
+    decoded_fontstack = URI.decode_www_form_component(fontstack)
+    fonts_dir = File.expand_path('fonts', __dir__)
+  font_dir = File.join(fonts_dir, decoded_fontstack)
+  
+  if Dir.exist?(font_dir)
+    font_file = File.join(font_dir, "#{range}.pbf")
+    if File.exist?(font_file)
+      LOGGER.debug "Serving font file: #{font_file}"
+      content_type 'application/octet-stream'
+      File.read(font_file)
+    else
+      LOGGER.warn "Font range '#{range}' not found for '#{decoded_fontstack}'"
+      halt 404, { error: "Font range '#{range}' not found" }.to_json
+    end
+  else
+    LOGGER.warn "Font directory '#{decoded_fontstack}' not found"
+    halt 404, { error: "Font '#{decoded_fontstack}' not found" }.to_json
+  end
+end
+
 get '/refresh' do
   Thread.new do
     begin

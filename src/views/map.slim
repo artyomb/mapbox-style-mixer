@@ -61,15 +61,13 @@ javascript:
     }
     
     if (style.glyphs) {
-      for (let i = 0; i < 256; i += 256) {
-        const range = `${i}-${Math.min(i + 255, 65535)}`;
-        totalResources++;
-        promises.push(
-          fetch(style.glyphs.replace('{fontstack}', 'Open Sans Regular,Arial Unicode MS Regular').replace('{range}', range))
-            .then(() => { resourcesLoaded++; updateLoadingProgress(); })
-            .catch(() => { resourcesLoaded++; updateLoadingProgress(); })
-        );
-      }
+      totalResources += 1;
+      promises.push(
+        Promise.resolve().then(() => {
+          resourcesLoaded++;
+          updateLoadingProgress();
+        })
+      );
     }
     
     if (totalResources === 0) {

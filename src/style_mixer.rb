@@ -108,6 +108,12 @@ module StyleMixer
       new_layer['id'] = "#{prefix}_#{layer['id']}"
       new_layer['source'] = "#{prefix}_#{layer['source']}" if layer['source']
       
+      if layer.dig('layout', 'text-font')
+        new_layer['layout']['text-font'] = layer['layout']['text-font'].map do |font|
+          "#{prefix}/#{font}"
+        end
+      end
+      
       if layer.dig('metadata', 'filter_id')
         new_layer['metadata'] = layer['metadata'].dup
         new_layer['metadata']['filter_id'] = "#{prefix}_#{layer['metadata']['filter_id']}"
