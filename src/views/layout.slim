@@ -227,9 +227,65 @@ html
       |   font-size: 12px;
       |   font-family: 'Courier New', monospace;
       | }
+      | 
+      | /* Initialization status styles */
+      | .header {
+      |   position: relative;
+      |   transition: all 0.3s ease;
+      | }
+      | 
+      | .header::before {
+      |   content: '';
+      |   position: absolute;
+      |   top: 0;
+      |   left: 0;
+      |   height: 100%;
+      |   background: linear-gradient(90deg, #6a9955 0%, transparent 100%);
+      |   width: var(--progress, 0%);
+      |   opacity: 0.3;
+      |   transition: width 0.5s ease;
+      |   pointer-events: none;
+      |   z-index: 1;
+      | }
+      | 
+      | .header.status-loading {
+      |   box-shadow: 0 0 20px rgba(106, 153, 85, 0.3);
+      |   animation: pulse 2s infinite;
+      | }
+      | 
+      | .header.status-ready {
+      |   box-shadow: 0 0 15px rgba(106, 153, 85, 0.2);
+      |   opacity: 0.9;
+      |   border-color: #6a9955;
+      | }
+      | 
+      | .header.status-error {
+      |   box-shadow: 0 0 20px rgba(244, 71, 71, 0.3);
+      |   border-color: #f44747;
+      |   animation: pulse-error 2s infinite;
+      | }
+      | 
+      | @keyframes pulse {
+      |   0%, 100% { box-shadow: 0 0 20px rgba(106, 153, 85, 0.3); }
+      |   50% { box-shadow: 0 0 30px rgba(106, 153, 85, 0.5); }
+      | }
+      | 
+      | @keyframes pulse-error {
+      |   0%, 100% { box-shadow: 0 0 20px rgba(244, 71, 71, 0.3); }
+      |   50% { box-shadow: 0 0 30px rgba(244, 71, 71, 0.5); }
+      | }
+      | 
+      | .style-card, .btn {
+      |   transition: opacity 0.3s ease, pointer-events 0.3s ease;
+      | }
+      | 
+      | .style-card.disabled, .btn.disabled {
+      |   opacity: 0.3;
+      |   pointer-events: none;
+      | }
   body
     .container
-      .header
+      .header.status-error
         .header-content
           div
             h1 Mapbox Style Mixer
@@ -237,31 +293,114 @@ html
           .version-info
             span.version = "v" + (ENV['ORG_OPENCONTAINERS_IMAGE_VERSION'] || File.read('.version').strip rescue '<local run>')
       == yield 
-    script
-      | document.addEventListener('DOMContentLoaded', function() {
-      |   document.querySelectorAll('.copy-btn').forEach(function(btn) {
-      |     btn.addEventListener('click', function(e) {
-      |       e.preventDefault();
-      |       const container = this.closest('.endpoint-container');
-      |       const urlLink = container.querySelector('.endpoint-url');
-      |       const url = urlLink.href;
-      |       copyToClipboard(url, this, container);
-      |     });
-      |   });
-      | });
-      | 
-      | function copyToClipboard(text, btn, container) {
-      |   navigator.clipboard.writeText(text).then(function() {
-      |     btn.textContent = '✓';
-      |     btn.classList.add('copy-success');
-      |     container.classList.add('copy-success');
-      |     
-      |     setTimeout(() => {
-      |       btn.textContent = '📋';
-      |       btn.classList.remove('copy-success');
-      |       container.classList.remove('copy-success');
-      |     }, 2000);
-      |   }).catch(function(err) {
-      |     console.error('Could not copy text: ', err);
-      |   });
-      | } 
+    javascript:
+      let initializationStatus = { state: 'error', progress: 0, message: 'Initializing...' };
+      let statusCheckInterval = null;
+
+      document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.copy-btn').forEach(function(btn) {
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const container = this.closest('.endpoint-container');
+            const urlLink = container.querySelector('.endpoint-url');
+            const url = urlLink.href;
+            copyToClipboard(url, this, container);
+          });
+        });
+        
+        if (statusCheckInterval) {
+          clearInterval(statusCheckInterval);
+          statusCheckInterval = null;
+        }
+        
+        checkInitializationStatus();
+      });
+
+      window.addEventListener('beforeunload', function() {
+        if (statusCheckInterval) {
+          clearInterval(statusCheckInterval);
+        }
+      });
+
+      function checkInitializationStatus() {
+        fetch('/status')
+          .then(response => response.json())
+          .then(data => {
+            initializationStatus = data;
+            updateHeaderStatus(data);
+            
+            if (data.state === 'ready') {
+              showStyleLinks();
+              clearInterval(statusCheckInterval);
+              statusCheckInterval = null;
+            } else if (data.state === 'error') {
+              showErrorStatus();
+              clearInterval(statusCheckInterval);
+              statusCheckInterval = null;
+            } else {
+              hideStyleLinks();
+              if (!statusCheckInterval) {
+                statusCheckInterval = setInterval(checkInitializationStatus, 500);
+              }
+            }
+          })
+          .catch(error => {
+            console.error('Error checking status:', error);
+            showErrorStatus();
+            clearInterval(statusCheckInterval);
+            statusCheckInterval = null;
+          });
+      }
+
+      function updateHeaderStatus(data) {
+        const header = document.querySelector('.header');
+        if (!header) return;
+        
+        header.classList.remove('status-loading', 'status-ready', 'status-error');
+        header.style.removeProperty('--progress');
+        
+        if (data.state === 'loading') {
+          header.classList.add('status-loading');
+          header.style.setProperty('--progress', data.progress + '%');
+        } else if (data.state === 'ready') {
+          header.classList.add('status-ready');
+        } else if (data.state === 'error') {
+          header.classList.add('status-error');
+        }
+      }
+
+      function showStyleLinks() {
+        document.querySelectorAll('.style-card, .btn').forEach(el => {
+          el.classList.remove('disabled');
+        });
+      }
+
+      function hideStyleLinks() {
+        document.querySelectorAll('.style-card, .btn').forEach(el => {
+          el.classList.add('disabled');
+        });
+      }
+
+      function showErrorStatus() {
+        hideStyleLinks();
+        const header = document.querySelector('.header');
+        if (header) {
+          header.classList.add('status-error');
+        }
+      }
+
+      function copyToClipboard(text, btn, container) {
+        navigator.clipboard.writeText(text).then(function() {
+          btn.textContent = '✓';
+          btn.classList.add('copy-success');
+          container.classList.add('copy-success');
+          
+          setTimeout(() => {
+            btn.textContent = '📋';
+            btn.classList.remove('copy-success');
+            container.classList.remove('copy-success');
+          }, 2000);
+        }).catch(function(err) {
+          console.error('Could not copy text: ', err);
+        });
+      } 

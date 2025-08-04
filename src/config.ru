@@ -9,17 +9,29 @@ StackServiceBase.rack_setup self
 
 $config = YAML.load_file(ENV['CONFIG_PATH'] || File.expand_path('configs/styles_config.yaml', __dir__))
 START_TIME = Time.now
+$initialization_status = { state: 'error', progress: 0, message: 'Initializing...' }
 
 require_relative 'style_downloader'
 require_relative 'style_mixer'
 require_relative 'sprite_merger'
 
-begin
-  StyleDownloader.new($config).download_all
-  StyleMixer.new($config).mix_all_styles
-  LOGGER.info "Styles successfully loaded and mixed on startup"
-rescue => e
-  LOGGER.error "Error loading styles on startup: #{e.message}"
+Thread.new do
+  begin
+    LOGGER.info "Starting background initialization..."
+    $initialization_status = { state: 'loading', progress: 20, message: 'Downloading source styles...' }
+    LOGGER.info "Downloading source styles..."
+    StyleDownloader.new($config).download_all
+    
+    $initialization_status = { state: 'loading', progress: 70, message: 'Mixing styles...' }
+    LOGGER.info "Mixing styles..."
+    StyleMixer.new($config).mix_all_styles
+    
+    $initialization_status = { state: 'ready', progress: 100, message: 'Ready' }
+    LOGGER.info "Styles successfully loaded and mixed on startup"
+  rescue => e
+    $initialization_status = { state: 'error', progress: 0, message: "Error: #{e.message}" }
+    LOGGER.error "Error loading styles on startup: #{e.message}"
+  end
 end
 
 helpers do
@@ -77,6 +89,11 @@ get '/' do
   slim :index
 end
 
+get '/status' do
+  content_type :json
+  $initialization_status.to_json
+end
+
 get '/styles' do
   content_type :json
   {
@@ -108,13 +125,21 @@ get '/fonts/*/:range.pbf' do
 end
 
 get '/refresh' do
+  $initialization_status = { state: 'loading', progress: 0, message: 'Starting refresh...' }
+  
   Thread.new do
     begin
+      $initialization_status = { state: 'loading', progress: 20, message: 'Downloading source styles...' }
       $config = YAML.load_file(ENV['CONFIG_PATH'] || File.expand_path('configs/styles_config.yaml', __dir__))
       StyleDownloader.new($config).download_all
+      
+      $initialization_status = { state: 'loading', progress: 70, message: 'Mixing styles...' }
       StyleMixer.new($config).mix_all_styles
+      
+      $initialization_status = { state: 'ready', progress: 100, message: 'Ready' }
       LOGGER.info "Styles refreshed and mixed successfully"
     rescue => e
+      $initialization_status = { state: 'error', progress: 0, message: "Error: #{e.message}" }
       LOGGER.error "Error refreshing styles: #{e.message}"
     end
   end
