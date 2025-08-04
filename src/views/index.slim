@@ -34,21 +34,11 @@
           | Style composition from #{style[:sources_count]} sources
         .style-stats
           .stat-item
-            span.stat-label ID: 
-            span.stat-value = style[:id]
-          .stat-item
-            span.stat-label Sources: 
-            span.stat-value = style[:sources_count]
-          .stat-item
             span.stat-label Style Endpoint: 
             .endpoint-container
-              span.copy-icon 📄
-              span.endpoint-url = "#{request.base_url}#{style[:endpoint]}"
-            a.btn.btn-small href=style[:endpoint] target="_blank" Open
+              a.btn.btn-small.copy-btn href="#" 📋
+              a.endpoint-url href=style[:endpoint] target="_blank" = "#{request.base_url}#{style[:endpoint]}"
             a.btn.btn-small href="/map?style=#{style[:id]}" target="_blank" 🌍 Test
-          .stat-item
-            span.stat-label Status: 
-            span.stat-value.status-ok ● Available
           
         .sprite-section
           .sprite-title Sprites
@@ -56,12 +46,10 @@
             .sprite-item
               span.sprite-label PNG: 
               .endpoint-container
-                span.copy-icon 📄
-                span.endpoint-url = "#{request.base_url}/sprite/#{style[:id]}_sprite.png"
-              a.btn.btn-small href="/sprite/#{style[:id]}_sprite.png" target="_blank" Open
+                a.btn.btn-small.copy-btn href="#" 📋
+                a.endpoint-url href="/sprite/#{style[:id]}_sprite.png" target="_blank" = "#{request.base_url}/sprite/#{style[:id]}_sprite.png"
             .sprite-item
               span.sprite-label JSON: 
               .endpoint-container
-                span.copy-icon 📄
-                span.endpoint-url = "#{request.base_url}/sprite/#{style[:id]}_sprite.json"
-              a.btn.btn-small href="/sprite/#{style[:id]}_sprite.json" target="_blank" Open 
+                a.btn.btn-small.copy-btn href="#" 📋
+                a.endpoint-url href="/sprite/#{style[:id]}_sprite.json" target="_blank" = "#{request.base_url}/sprite/#{style[:id]}_sprite.json" 

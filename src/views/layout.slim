@@ -63,42 +63,41 @@ html
       | .stat-item { font-size: 12px; }
       | .stat-label { color: #808080; }
       | .stat-value { color: #6897bb; }
-      | .endpoint-container { 
-      |   display: inline-flex; 
-      |   align-items: center; 
-      |   gap: 6px; 
-      |   cursor: pointer;
+      | .endpoint-container {
+      |   display: inline-flex;
+      |   align-items: center;
+      |   gap: 6px;
       |   padding: 2px 4px;
       |   border-radius: 2px;
       |   transition: all 0.2s ease;
-      |   margin-left: 4px;
       | }
-      | .endpoint-container:hover { 
-      |   background: #4b4d4f; 
-      | }
-      | .endpoint-container.copy-success { 
-      |   background: #2d4a2d !important; 
+      | .endpoint-container.copy-success {
+      |   background: #2d4a2d !important;
       |   border: 1px solid #6a9955;
       | }
-      | .endpoint-url { 
-      |   color: #6897bb; 
+      | .endpoint-url {
+      |   color: #6897bb;
       |   font-family: 'Courier New', monospace;
       |   font-size: 11px;
       |   text-decoration: underline;
       | }
-      | .copy-icon { 
-      |   color: #555555; 
-      |   font-size: 9px; 
-      |   flex-shrink: 0;
-      |   transition: color 0.2s;
+      | .copy-btn {
+      |   background: transparent;
+      |   color: #555555;
+      |   border: 1px solid transparent;
+      |   padding: 2px 4px;
+      |   font-size: 12px;
+      |   cursor: pointer;
       |   opacity: 0.5;
+      |   transition: opacity 0.2s, border-color 0.2s;
       | }
-      | .endpoint-container:hover .copy-icon { 
-      |   color: #808080; 
+      | .copy-btn:hover {
       |   opacity: 0.8;
+      |   background: transparent;
+      |   border-color: #666666;
       | }
-      | .copy-success .copy-icon { 
-      |   color: #6a9955 !important; 
+      | .copy-success {
+      |   color: #6a9955 !important;
       |   opacity: 1 !important;
       | }
       | .style-actions { margin-top: 12px; }
@@ -219,22 +218,26 @@ html
       == yield 
     script
       | document.addEventListener('DOMContentLoaded', function() {
-      |   document.querySelectorAll('.endpoint-container').forEach(function(container) {
-      |     container.addEventListener('click', function() {
-      |       const url = this.querySelector('.endpoint-url').textContent;
-      |       copyToClipboard(url, this);
+      |   document.querySelectorAll('.copy-btn').forEach(function(btn) {
+      |     btn.addEventListener('click', function(e) {
+      |       e.preventDefault();
+      |       const container = this.closest('.endpoint-container');
+      |       const urlLink = container.querySelector('.endpoint-url');
+      |       const url = urlLink.href;
+      |       copyToClipboard(url, this, container);
       |     });
       |   });
       | });
       | 
-      | function copyToClipboard(text, container) {
+      | function copyToClipboard(text, btn, container) {
       |   navigator.clipboard.writeText(text).then(function() {
-      |     const copyIcon = container.querySelector('.copy-icon');
-      |     copyIcon.textContent = '✓';
+      |     btn.textContent = '✓';
+      |     btn.classList.add('copy-success');
       |     container.classList.add('copy-success');
       |     
       |     setTimeout(() => {
-      |       copyIcon.textContent = '📄';
+      |       btn.textContent = '📋';
+      |       btn.classList.remove('copy-success');
       |       container.classList.remove('copy-success');
       |     }, 2000);
       |   }).catch(function(err) {
