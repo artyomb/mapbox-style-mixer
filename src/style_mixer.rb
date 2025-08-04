@@ -64,11 +64,13 @@ class StyleMixer
   def create_base_structure(mix_id, mix_config)
     {
       'version' => 8,
-      'id' => mix_id,
       'name' => mix_config['name'] || "Mixed Style: #{mix_id}",
+      'sprite' => nil,
+      'glyphs' => nil,
+      'metadata' => { 'filters' => {}, 'locale' => { 'ru' => {}, 'en-US' => {} } },
       'sources' => {},
       'layers' => [],
-      'metadata' => { 'filters' => {}, 'locale' => { 'ru' => {}, 'en-US' => {} } }
+      'id' => mix_id
     }
   end
 
