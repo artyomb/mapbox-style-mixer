@@ -16,7 +16,7 @@ require_relative 'sprite_merger'
 
 begin
   StyleDownloader.new($config).download_all
-  StyleMixer.mix_all_styles($config)
+  StyleMixer.new($config).mix_all_styles
   LOGGER.info "Styles successfully loaded and mixed on startup"
 rescue => e
   LOGGER.error "Error loading styles on startup: #{e.message}"
@@ -112,7 +112,7 @@ get '/refresh' do
     begin
       $config = YAML.load_file(ENV['CONFIG_PATH'] || File.expand_path('configs/styles_config.yaml', __dir__))
       StyleDownloader.new($config).download_all
-      StyleMixer.mix_all_styles($config)
+      StyleMixer.new($config).mix_all_styles
       LOGGER.info "Styles refreshed and mixed successfully"
     rescue => e
       LOGGER.error "Error refreshing styles: #{e.message}"
