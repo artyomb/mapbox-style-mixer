@@ -15,16 +15,16 @@ require_relative 'style_mixer'
 require_relative 'sprite_merger'
 
 begin
-  StyleDownloader.download_all
-  StyleMixer.mix_all_styles
+  StyleDownloader.download_all($config)
+  StyleMixer.mix_all_styles($config)
   LOGGER.info "Styles successfully loaded and mixed on startup"
 rescue => e
   LOGGER.error "Error loading styles on startup: #{e.message}"
 end
 
 helpers do
-  def fetch_style(mix_id)
-    mix_config = $config['styles'][mix_id]
+  def fetch_style(mix_id, config = $config)
+    mix_config = config['styles'][mix_id]
     halt 404, { error: "Style '#{mix_id}' not found" }.to_json unless mix_config
     
     mixed_file = File.expand_path("mixed_styles/#{mix_id}.json", __dir__)
@@ -33,13 +33,13 @@ helpers do
     JSON.parse(File.read(mixed_file))
   end
   
-  def get_styles_data
-    $config['styles'].keys.map do |style_id|
+  def get_styles_data(config = $config)
+    config['styles'].keys.map do |style_id|
       {
         id: style_id,
-        name: $config['styles'][style_id]['name'],
+        name: config['styles'][style_id]['name'],
         endpoint: "/styles/#{style_id}",
-        sources_count: $config['styles'][style_id]['sources'].length
+        sources_count: config['styles'][style_id]['sources'].length
       }
     end
   end
@@ -123,8 +123,8 @@ get '/refresh' do
   Thread.new do
     begin
       $config = YAML.load_file(ENV['CONFIG_PATH'] || File.expand_path('configs/styles_config.yaml', __dir__))
-      StyleDownloader.download_all
-      StyleMixer.mix_all_styles
+      StyleDownloader.download_all($config)
+      StyleMixer.mix_all_styles($config)
       LOGGER.info "Styles refreshed and mixed successfully"
     rescue => e
       LOGGER.error "Error refreshing styles: #{e.message}"

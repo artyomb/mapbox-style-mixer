@@ -29,8 +29,7 @@ module StyleMixer
     mixed_style
   end
   
-  def self.mix_all_styles
-    config = load_config
+  def self.mix_all_styles(config = $config)
     prepare_mixed_styles_directory
     
     LOGGER.info "Starting mixing of all styles"

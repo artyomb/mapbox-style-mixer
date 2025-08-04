@@ -22,11 +22,11 @@ module SpriteMerger
     end
   end
   
-  def self.merge_all_sprites
+  def self.merge_all_sprites(config = $config)
     LOGGER.info "Starting merging of all sprites"
     prepare_sprite_directory
     
-    $config['styles'].each do |mix_id, mix_config|
+    config['styles'].each do |mix_id, mix_config|
       merge_sprites_for_mix(mix_id)
     rescue => e
       LOGGER.error "Error merging sprites for #{mix_id}: #{e.message}"
