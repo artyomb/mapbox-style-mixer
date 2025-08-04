@@ -9,9 +9,18 @@ ruby:
 
 - if style_name
   .layer-controls
-    button.layer-button onclick="toggleAllLayers()" Toggle All
-    button.layer-button onclick="toggleBasemap()" Toggle Basemap
-    #layer-buttons
+    .mode-switcher
+      button.mode-button.active onclick="switchMode('filters')" Filters
+      button.mode-button onclick="switchMode('layers')" Layers
+    button.control-button onclick="toggleBasemap()" Toggle Basemap
+    
+    #filters-panel.control-panel.active
+      button.control-button onclick="toggleAllFilters()" Toggle All Filters
+      #filter-buttons
+    
+    #layers-panel.control-panel
+      button.control-button onclick="toggleAllLayers()" Toggle All Layers
+      #layer-buttons
 
 #map-container
   #map_base.map-layer
@@ -19,21 +28,29 @@ ruby:
 
 javascript:
   const style_url = '#{style_url}';
-  let showBasemap = true;
-  let layerStates = {};
-  let map = null;
-  let map_base = null;
-  let styleLoaded = false;
-  let resourcesLoaded = 0;
-  let totalResources = 0;
+  let showBasemap = true, currentMode = 'filters';
+  let layerStates = {}, filterStates = {};
+  let map = null, map_base = null;
+  let styleLoaded = false, resourcesLoaded = 0, totalResources = 0;
+  let currentStyle = null;
   
-  function showLoading() {
-    document.getElementById('loading-overlay').style.display = 'flex';
+  function getLocalizedFilterName(locale, filterId) {
+    if (!locale) return filterId;
+    const languagePriority = ['en-US', 'en', 'ru'];
+    
+    for (const lang of languagePriority) {
+      if (locale[lang]?.[filterId]) return locale[lang][filterId];
+    }
+    
+    for (const lang in locale) {
+      if (locale[lang]?.[filterId]) return locale[lang][filterId];
+    }
+    
+    return filterId;
   }
   
-  function hideLoading() {
-    document.getElementById('loading-overlay').style.display = 'none';
-  }
+  function showLoading() { document.getElementById('loading-overlay').style.display = 'flex'; }
+  function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
   
   function updateLoadingProgress() {
     if (totalResources > 0) {
@@ -42,9 +59,38 @@ javascript:
     }
   }
   
+  function switchMode(mode) {
+    currentMode = mode;
+    document.querySelectorAll('.mode-button').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    document.getElementById('filters-panel').classList.toggle('active', mode === 'filters');
+    document.getElementById('layers-panel').classList.toggle('active', mode === 'layers');
+    
+    mode === 'filters' ? applyFilterMode() : applyLayerMode();
+    console.log(`Switched to ${mode} mode`);
+  }
+  
+  function applyFilterMode() {
+    if (currentStyle?.layers) {
+      currentStyle.layers.forEach(layer => {
+        if (map.getLayer(layer.id)) map.setLayoutProperty(layer.id, 'visibility', 'visible');
+      });
+    }
+    Object.keys(filterStates).forEach(filterId => applyFilter(filterId, filterStates[filterId]));
+  }
+  
+  function applyLayerMode() {
+    Object.keys(filterStates).forEach(filterId => filterStates[filterId] = true);
+    updateFilterButtons();
+    Object.keys(layerStates).forEach(layerId => {
+      const visibility = layerStates[layerId] ? 'visible' : 'none';
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visibility);
+    });
+  }
+  
   function checkStyleResources(style) {
-    totalResources = 0;
-    resourcesLoaded = 0;
+    totalResources = 0; resourcesLoaded = 0;
     const promises = [];
     
     if (style.sprite) {
@@ -53,31 +99,19 @@ javascript:
         Promise.all([
           fetch(style.sprite + '.json').catch(() => {}),
           fetch(style.sprite + '.png').catch(() => {})
-        ]).then(() => {
-          resourcesLoaded += 2;
-          updateLoadingProgress();
-        })
+        ]).then(() => { resourcesLoaded += 2; updateLoadingProgress(); })
       );
     }
     
     if (style.glyphs) {
       totalResources += 1;
-      promises.push(
-        Promise.resolve().then(() => {
-          resourcesLoaded++;
-          updateLoadingProgress();
-        })
-      );
+      promises.push(Promise.resolve().then(() => { resourcesLoaded++; updateLoadingProgress(); }));
     }
     
     if (totalResources === 0) {
-      styleLoaded = true;
-      initializeMap();
+      styleLoaded = true; initializeMap();
     } else {
-      Promise.all(promises).then(() => {
-        styleLoaded = true;
-        initializeMap();
-      });
+      Promise.all(promises).then(() => { styleLoaded = true; initializeMap(); });
     }
   }
   
@@ -85,28 +119,16 @@ javascript:
     if (!styleLoaded) return;
     
     map_base = new maplibregl.Map({
-      container: 'map_base',
-      style: 'https://demotiles.maplibre.org/style.json',
-      center: [35.15, 47.41], 
-      zoom: 2,
-      attributionControl: false,
-      interactive: false,
-      trackResize: false,
-      validateStyle: false
+      container: 'map_base', style: 'https://demotiles.maplibre.org/style.json',
+      center: [35.15, 47.41], zoom: 2, attributionControl: false,
+      interactive: false, trackResize: false, validateStyle: false
     });
     map_base.triggerRepaint = () => {};
-    
-    map_base.on('load', () => {
-      map_base.setProjection({ type: 'globe' });
-    });
+    map_base.on('load', () => map_base.setProjection({ type: 'globe' }));
 
     map = new maplibregl.Map({
-      container: 'map',
-      style: style_url || 'https://demotiles.maplibre.org/style.json',
-      center: [35.15, 47.41], 
-      zoom: 2,
-      attributionControl: false,
-      validateStyle: false
+      container: 'map', style: style_url || 'https://demotiles.maplibre.org/style.json',
+      center: [35.15, 47.41], zoom: 2, attributionControl: false, validateStyle: false
     });
 
     map.addControl(new maplibregl.NavigationControl());
@@ -115,23 +137,16 @@ javascript:
     if (style_url) {
       function syncMaps(map, map_base) {
         map.on('move', () => {
-          const center = map.getCenter();
-          const zoom = map.getZoom();
-          const bearing = map.getBearing();
-          const pitch = map.getPitch();
-
+          const center = map.getCenter(), zoom = map.getZoom();
+          const bearing = map.getBearing(), pitch = map.getPitch();
           map_base.jumpTo({center, zoom, bearing, pitch});
-          map_base.redraw();
-          map_base.resize();
+          map_base.redraw(); map_base.resize();
         });
       }
-
       syncMaps(map, map_base);
-
       map.on('projectiontransition', (e) => {
         map_base.setProjection({ type: e.newProjection });
-        map_base.redraw();
-        map_base.resize();
+        map_base.redraw(); map_base.resize();
       });
     }
 
@@ -139,16 +154,14 @@ javascript:
       map.setProjection({ type: 'globe' });
       
       if (style_url) {
-        createLayerButtons();
+        createLayerButtons(); createFilterButtons(); applyFilterMode();
       }
       
       const popup = new maplibregl.Popup({closeButton: false, closeOnClick: false});
 
       map.on('click', function (e) {
         const features = this.queryRenderedFeatures(e.point);
-        if (features.length > 0) {
-          console.log('Clicked feature:', features[0]);
-        }
+        if (features.length > 0) console.log('Clicked feature:', features[0]);
       });
 
       function popupFeature(features, e) {
@@ -165,14 +178,11 @@ javascript:
         popup.setLngLat(e.lngLat).setHTML(tooltips.join('<br>')).addTo(map);
       }
 
-      let timeout;
-      let point;
-
+      let timeout, point;
       map.on('mousemove', (e) => {
         clearTimeout(timeout);
-
         const features = map.queryRenderedFeatures(e.point);
-
+        
         if (features.length > 0) {
           map.getCanvas().style.cursor = 'crosshair';
           timeout = setTimeout(() => popupFeature(features, e), 100);
@@ -180,7 +190,7 @@ javascript:
           map.getCanvas().style.cursor = '';
           popup.remove();
         }
-        if( point && !point.equals(e.point)) { popup.remove(); }
+        if (point && !point.equals(e.point)) { popup.remove(); }
         point = e.point.clone();
       });
       
@@ -190,85 +200,152 @@ javascript:
 
   function toggleBasemap() {
     showBasemap = !showBasemap;
-    const basemapElement = document.getElementById('map_base');
-    basemapElement.style.display = showBasemap ? 'block' : 'none';
+    document.getElementById('map_base').style.display = showBasemap ? 'block' : 'none';
   }
 
   function toggleAllLayers() {
+    if (currentMode !== 'layers') return;
     const allVisible = Object.values(layerStates).every(state => state);
     const newState = !allVisible;
     
     Object.keys(layerStates).forEach(layerId => {
       layerStates[layerId] = newState;
       const visibility = newState ? 'visible' : 'none';
-      if (map.getLayer(layerId)) {
-        map.setLayoutProperty(layerId, 'visibility', visibility);
-      }
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visibility);
     });
     
     updateLayerButtons();
+    console.log(`Toggled all layers to ${newState ? 'visible' : 'hidden'} in layers mode`);
   }
 
   function toggleLayer(layerId) {
+    if (currentMode !== 'layers') return;
     layerStates[layerId] = !layerStates[layerId];
     const visibility = layerStates[layerId] ? 'visible' : 'none';
     
-    if (map.getLayer(layerId)) {
-      map.setLayoutProperty(layerId, 'visibility', visibility);
-    }
-    
+    if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visibility);
     updateLayerButtons();
+    console.log(`Toggled layer ${layerId} to ${layerStates[layerId] ? 'visible' : 'hidden'} in layers mode`);
   }
 
   function updateLayerButtons() {
     Object.keys(layerStates).forEach(layerId => {
       const button = document.getElementById(`layer-${layerId}`);
-      if (button) {
-        button.className = `layer-button ${layerStates[layerId] ? 'active' : 'inactive'}`;
+      if (button) button.className = `control-button ${layerStates[layerId] ? 'active' : 'inactive'}`;
+    });
+  }
+
+  function toggleAllFilters() {
+    if (currentMode !== 'filters') return;
+    const allActive = Object.values(filterStates).every(state => state);
+    const newState = !allActive;
+    
+    Object.keys(filterStates).forEach(filterId => {
+      filterStates[filterId] = newState;
+      applyFilter(filterId, newState);
+    });
+    
+    updateFilterButtons();
+    console.log(`Toggled all filters to ${newState ? 'active' : 'inactive'} in filters mode`);
+  }
+
+  function toggleFilter(filterId) {
+    if (currentMode !== 'filters') return;
+    filterStates[filterId] = !filterStates[filterId];
+    applyFilter(filterId, filterStates[filterId]);
+    updateFilterButtons();
+    console.log(`Toggled filter ${filterId} to ${filterStates[filterId] ? 'active' : 'inactive'} in filters mode`);
+  }
+
+  function applyFilter(filterId, isActive) {
+    if (currentMode !== 'filters') return;
+    if (!currentStyle?.metadata?.filters) return;
+    
+    const filterConfig = currentStyle.metadata.filters[filterId];
+    if (!filterConfig) return;
+    
+    let foundLayers = 0;
+    const filterIds = filterConfig.map(filter => filter.id);
+    
+    currentStyle.layers.forEach(layer => {
+      if (layer.metadata?.filter_id && filterIds.includes(layer.metadata.filter_id)) {
+        foundLayers++;
+        if (map.getLayer(layer.id)) {
+          const visibility = isActive ? 'visible' : 'none';
+          map.setLayoutProperty(layer.id, 'visibility', visibility);
+          console.log(`${isActive ? 'Showing' : 'Hiding'} layer ${layer.id} for filter ${filterId} (matches ${layer.metadata.filter_id})`);
+        } else {
+          console.log(`Layer ${layer.id} not found on map`);
+        }
       }
+    });
+    
+    console.log(`Filter ${filterId}: found ${foundLayers} layers, ${isActive ? 'showing' : 'hiding'} in filters mode`);
+  }
+
+  function updateFilterButtons() {
+    Object.keys(filterStates).forEach(filterId => {
+      const button = document.getElementById(`filter-${filterId}`);
+      if (button) button.className = `control-button ${filterStates[filterId] ? 'active' : 'inactive'}`;
     });
   }
 
   function createLayerButtons() {
     if (!style_url) return;
     
-    fetch(style_url)
-      .then(response => response.json())
-      .then(style => {
-        const layerButtonsContainer = document.getElementById('layer-buttons');
+    fetch(style_url).then(response => response.json()).then(style => {
+      currentStyle = style;
+      const layerButtonsContainer = document.getElementById('layer-buttons');
+      
+      if (style.layers) {
+        style.layers.forEach(layer => {
+          const button = document.createElement('button');
+          button.id = `layer-${layer.id}`;
+          button.className = 'control-button active';
+          button.textContent = layer.id;
+          button.onclick = () => toggleLayer(layer.id);
+          layerButtonsContainer.appendChild(button);
+          layerStates[layer.id] = true;
+        });
+      }
+    }).catch(error => console.error('Error loading style:', error));
+  }
+
+  function createFilterButtons() {
+    if (!style_url) return;
+    
+    fetch(style_url).then(response => response.json()).then(style => {
+      const filterButtonsContainer = document.getElementById('filter-buttons');
+      
+      if (style.metadata?.filters) {
+        console.log('Creating filter buttons for:', Object.keys(style.metadata.filters));
         
-        if (style.layers) {
-          style.layers.forEach(layer => {
-            const button = document.createElement('button');
-            button.id = `layer-${layer.id}`;
-            button.className = 'layer-button active';
-            button.textContent = layer.id;
-            button.onclick = () => toggleLayer(layer.id);
-            
-            layerButtonsContainer.appendChild(button);
-            layerStates[layer.id] = true;
-          });
-        }
-      })
-      .catch(error => {
-        console.error('Error loading style:', error);
-      });
+        Object.keys(style.metadata.filters).forEach(filterId => {
+          const button = document.createElement('button');
+          button.id = `filter-${filterId}`;
+          button.className = 'control-button active';
+          const locale = getLocalizedFilterName(style.metadata.locale, filterId);
+          button.textContent = locale;
+          button.onclick = () => toggleFilter(filterId);
+          filterButtonsContainer.appendChild(button);
+          filterStates[filterId] = true;
+          console.log(`Created filter button: ${filterId} -> ${locale} (localized)`);
+        });
+      } else {
+        console.log('No filters found in style metadata');
+      }
+    }).catch(error => console.error('Error loading style:', error));
   }
 
   showLoading();
   
   if (style_url) {
-    fetch(style_url)
-      .then(response => response.json())
-      .then(style => {
-        checkStyleResources(style);
-      })
-      .catch(error => {
-        console.error('Error loading style:', error);
-        styleLoaded = true;
-        initializeMap();
-      });
+    fetch(style_url).then(response => response.json()).then(style => {
+      checkStyleResources(style);
+    }).catch(error => {
+      console.error('Error loading style:', error);
+      styleLoaded = true; initializeMap();
+    });
   } else {
-    styleLoaded = true;
-    initializeMap();
+    styleLoaded = true; initializeMap();
   } 
