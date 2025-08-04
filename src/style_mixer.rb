@@ -20,7 +20,7 @@ module StyleMixer
     end
     
     require_relative 'sprite_merger'
-    SpriteMerger.merge_sprites_for_mix(mix_id)
+    SpriteMerger.new($config).merge_sprites_for_mix(mix_id)
     
     update_resource_urls(mixed_style, mix_id)
     save_mixed_style(mixed_style, mix_id)
