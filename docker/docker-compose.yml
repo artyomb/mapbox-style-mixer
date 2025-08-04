@@ -14,3 +14,20 @@ services:
       - CONFIG_PATH=/configs/styles_config.yaml
     volumes:
       - ../src/configs:/configs
+
+  tests:
+    image: ${REGISTRY_HOST}/mapbox-style-mixer
+    build:
+      context: ../src
+      dockerfile: ../docker/ruby/Dockerfile
+      cache_from:
+        - type=gha,scope=mapbox-style-mixer
+      cache_to:
+        - type=gha,scope=mapbox-style-mixer,mode=max
+    environment:
+      - RACK_ENV=test
+      - CONFIG_PATH=/configs/styles_config.yaml
+    volumes:
+      - ../src:/app
+    working_dir: /app
+    command: bundle exec rspec spec/config_spec.rb spec/api/routes_spec.rb spec/integration/workflow_spec.rb --format documentation
