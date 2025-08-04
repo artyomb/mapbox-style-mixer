@@ -213,8 +213,29 @@ html
       |   font-size: 12px;
       |   margin-top: 4px;
       | }
+      | .header-content {
+      |   display: flex;
+      |   justify-content: space-between;
+      |   align-items: flex-start;
+      | }
+      | .version-info {
+      |   text-align: right;
+      |   margin-top: 4px;
+      | }
+      | .version {
+      |   color: #808080;
+      |   font-size: 12px;
+      |   font-family: 'Courier New', monospace;
+      | }
   body
     .container
+      .header
+        .header-content
+          div
+            h1 Mapbox Style Mixer
+            p Service for combining and managing Mapbox styles
+          .version-info
+            span.version = "v" + (ENV['ORG_OPENCONTAINERS_IMAGE_VERSION'] || File.read('.version').strip rescue '<local run>')
       == yield 
     script
       | document.addEventListener('DOMContentLoaded', function() {
