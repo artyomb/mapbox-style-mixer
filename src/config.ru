@@ -115,7 +115,16 @@ helpers do
     end
   end
   
-  def serve_font_file(fontstack, range)
+  def get_available_fonts
+    fonts_dir = File.expand_path('fonts', __dir__)
+    Dir.glob("#{fonts_dir}/**/*/").select { |path| 
+      Dir.glob("#{path}*.pbf").any?
+    }.map { |path| 
+      path.gsub("#{fonts_dir}/", '').chomp('/')
+    }
+  end
+  
+  def serve_font_file_fallback(fontstack, range)
     decoded_fontstack = URI.decode_www_form_component(fontstack)
     font_file = File.join(File.expand_path('fonts', __dir__), decoded_fontstack, "#{range}.pbf")
     
@@ -125,7 +134,8 @@ helpers do
       File.read(font_file)
     else
       LOGGER.warn "Font file not found: #{font_file}"
-      halt 404, { error: "Font file not found" }.to_json
+      content_type :json
+      get_available_fonts.to_json
     end
   end
 end
@@ -170,7 +180,12 @@ get '/sprite/:mix_id.png' do
 end
 
 get '/fonts/*/:range.pbf' do
-  serve_font_file(params[:splat].first, params[:range])
+  serve_font_file_fallback(params[:splat].first, params[:range])
+end
+
+get '/fonts.json' do
+  content_type :json
+  get_available_fonts.to_json
 end
 
 get '/refresh' do
