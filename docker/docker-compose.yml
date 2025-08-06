@@ -29,5 +29,6 @@ services:
       - CONFIG_PATH=/configs/styles_config.yaml
     volumes:
       - ../src:/app
+      - ../src/configs:/configs
     working_dir: /app
-    command: bundle exec rspec spec/config_spec.rb spec/api/routes_spec.rb spec/integration/workflow_spec.rb --format documentation
+    command: bundle exec rspec --format progress

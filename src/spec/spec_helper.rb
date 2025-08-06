@@ -71,10 +71,19 @@ module FixtureHelpers
   end
 
   def sample_sprite_json = { 'icon1' => { 'width' => 24, 'height' => 24, 'x' => 0, 'y' => 0, 'pixelRatio' => 1 } }
+
+  def create_sprite_dir(name, json_data)
+    dir = "src/sprites/#{name}"
+    FileUtils.mkdir_p(dir)
+    File.write("#{dir}/sprite.json", json_data.to_json)
+    File.write("#{dir}/sprite.png", 'fake_png_data')
+  end
 end
 
 RSpec.configure do |config|
-  config.include Rack::Test::Methods, FakeFS::SpecHelpers, FixtureHelpers
+  config.include Rack::Test::Methods
+  config.include FakeFS::SpecHelpers
+  config.include FixtureHelpers
 
   config.before(:each) { reset_mocks_and_state }
   config.after(:each) { WebMock.reset! }

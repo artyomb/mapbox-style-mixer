@@ -67,4 +67,32 @@ RSpec.describe 'Configuration' do
       expect(styles.values.map { |s| s['sources'].size }).to eq([2, 3])
     end
   end
+
+  describe 'authentication configuration' do
+    let(:auth_config) { { 'styles' => { 
+      'auth_style' => { 'id' => 'auth_test', 'name' => 'Auth Test Style',
+                       'sources' => [
+                         { 'url' => 'https://secure.example.com/style.json',
+                           'auth' => { 'username' => 'user', 'password' => 'pass' } },
+                         'https://public.example.com/style.json'
+                       ] }
+    } } }
+
+    it 'supports mixed sources with and without auth' do
+      sources = auth_config.dig('styles', 'auth_style', 'sources')
+      expect(sources[0]).to be_a(Hash).and include('url', 'auth')
+      expect(sources[1]).to be_a(String)
+    end
+
+    it 'validates auth structure in sources' do
+      auth_source = auth_config.dig('styles', 'auth_style', 'sources', 0)
+      expect(auth_source['auth']).to include('username', 'password')
+    end
+
+    it 'handles string sources without auth' do
+      string_source = auth_config.dig('styles', 'auth_style', 'sources', 1)
+      expect(string_source).to be_a(String)
+      expect(string_source).to start_with('https://')
+    end
+  end
 end
