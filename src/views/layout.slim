@@ -545,10 +545,16 @@ html
         document.querySelectorAll('.style-card, .btn').forEach(el => {
           el.classList.add('disabled');
         });
+        document.querySelectorAll('.refresh-btn').forEach(el => {
+          el.classList.remove('disabled');
+        });
       }
 
       function showErrorStatus() {
         hideStyleLinks();
+        document.querySelectorAll('.refresh-btn').forEach(el => {
+          el.classList.remove('disabled');
+        });
         const header = document.querySelector('.header');
         if (header) {
           header.classList.add('status-error');
