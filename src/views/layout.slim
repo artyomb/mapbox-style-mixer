@@ -89,12 +89,13 @@ html
       | .stat-label { color: #808080; }
       | .stat-value { color: #6897bb; }
       | .endpoint-container {
-      |   display: inline-flex;
+      |   display: flex;
       |   align-items: center;
       |   gap: 6px;
       |   padding: 2px 4px;
       |   border-radius: 2px;
       |   transition: all 0.2s ease;
+      |   flex-wrap: wrap;
       | }
       | .endpoint-container.copy-success {
       |   background: #2d4a2d !important;
@@ -178,6 +179,16 @@ html
       | .map-btn:hover {
       |   background: #7aa8cc;
       |   border-color: #8bb9dd;
+      | }
+      | .test-btn {
+      |   background: #2d4a2d;
+      |   color: #ffffff;
+      |   border-color: #3a5a3a;
+      |   font-weight: bold;
+      | }
+      | .test-btn:hover {
+      |   background: #3a5a3a;
+      |   border-color: #4a6a4a;
       | }
       | .sprite-section {
       |   margin-top: 12px;
@@ -329,7 +340,7 @@ html
       |   line-height: 1.3;
       | }
       | 
-      | .sources-section, .fonts-section, .sprites-section {
+      | .sources-section, .fonts-section, .sprites-section, .endpoint-section {
       |   margin-top: 12px;
       |   padding: 8px;
       |   background: #2b2b2b;
@@ -337,7 +348,7 @@ html
       |   border: 1px solid #464749;
       | }
       | 
-      | .sources-title, .fonts-title, .sprites-title {
+      | .sources-title, .fonts-title, .sprites-title, .endpoint-title {
       |   color: #ffc66d;
       |   font-weight: bold;
       |   margin-bottom: 8px;
@@ -355,7 +366,7 @@ html
       |   word-break: break-all;
       | }
       | 
-      | .source-item, .font-item, .sprite-item {
+      | .source-item, .font-item, .sprite-item, .endpoint-item {
       |   display: flex;
       |   justify-content: space-between;
       |   align-items: center;
@@ -364,11 +375,11 @@ html
       |   font-size: 12px;
       | }
       | 
-      | .source-item:last-child, .font-item:last-child {
+      | .source-item:last-child, .font-item:last-child, .endpoint-item:last-child {
       |   border-bottom: none;
       | }
       | 
-      | .source-url, .font-name, .sprite-url {
+      | .source-url, .font-name, .sprite-url, .endpoint-url, .endpoint-link {
       |   color: #6897bb;
       |   font-family: 'Courier New', monospace;
       |   word-break: break-all;
@@ -378,6 +389,13 @@ html
       | }
       | 
       | .font-link, .sprite-link {
+      |   color: #6a9955;
+      |   text-decoration: underline;
+      |   font-size: 11px;
+      |   margin-right: 8px;
+      | }
+      | 
+      | .endpoint-link {
       |   color: #6a9955;
       |   text-decoration: underline;
       |   font-size: 11px;
@@ -420,23 +438,7 @@ html
       |   display: none;
       | }
       | 
-      | .style-endpoint-section {
-      |   display: flex;
-      |   align-items: center;
-      |   gap: 8px;
-      |   padding: 8px;
-      |   background: #2b2b2b;
-      |   border-radius: 3px;
-      |   border: 1px solid #464749;
-      |   margin-top: 8px;
-      | }
-      | 
-      | .endpoint-label {
-      |   color: #ffc66d;
-      |   font-weight: bold;
-      |   font-size: 12px;
-      |   white-space: nowrap;
-      | }
+
   body
     .container
       .header.status-error
@@ -452,17 +454,17 @@ html
       let statusCheckInterval = null;
 
       document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.endpoint-container .copy-btn').forEach(function(btn) {
+        document.querySelectorAll('.endpoint-item .copy-btn').forEach(function(btn) {
           btn.addEventListener('click', function(e) {
             e.preventDefault();
-            const container = this.closest('.endpoint-container');
-            const urlLink = container.querySelector('.endpoint-url');
+            const item = this.closest('.endpoint-item');
+            const urlLink = item.querySelector('.endpoint-link');
             const url = urlLink.href;
-            copyToClipboard(url, this, container);
+            copyToClipboard(url, this, item);
           });
         });
         
-        document.querySelectorAll('.copy-btn:not(.endpoint-container .copy-btn)').forEach(function(btn) {
+        document.querySelectorAll('.copy-btn:not(.endpoint-item .copy-btn)').forEach(function(btn) {
           btn.addEventListener('click', function(e) {
             e.preventDefault();
             const text = this.getAttribute('data-copy-text');

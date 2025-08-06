@@ -51,12 +51,13 @@
         .style-description 
           | Style composition from #{style[:sources_count]} sources
         
-        .style-endpoint-section
-          .endpoint-label Style Endpoint:
-          .endpoint-container
-            a.btn.btn-small.copy-btn.disabled href="#" 📋
-            a.endpoint-url href=style[:endpoint] = "#{request.base_url}#{style[:endpoint]}"
-          a.btn.btn-small.disabled href="/map?style=#{style[:id]}" 🌍 Test
+        .endpoint-section
+          .endpoint-title Style Endpoint
+          .endpoint-list
+            .endpoint-item
+              a.btn.btn-small.copy-btn.disabled href="#" 📋
+              a.endpoint-link href=style[:endpoint] = "#{request.base_url}#{style[:endpoint]}"
+              a.btn.btn-small.test-btn.disabled href="/map?style=#{style[:id]}" 🗺️ Test Map
         
         .sources-section
           .sources-title Sources (#{style[:sources_count]})
