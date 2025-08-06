@@ -90,11 +90,18 @@ helpers do
   
 
   
+  def validate_auth_config(source)
+    return unless source.is_a?(Hash) && source['auth']
+    missing = ['username', 'password'] - source['auth'].keys
+    raise "Missing auth fields: #{missing}" if missing.any?
+  end
+  
   def get_safe_config(config = $config)
     config.dup.tap do |safe_config|
       safe_config['styles'] = safe_config['styles'].transform_values do |style_config|
         style_config.dup.tap do |safe_style|
           safe_style['sources'] = safe_style['sources'].map do |source|
+            validate_auth_config(source)
             source.is_a?(Hash) && source['auth'] ? 
               source.dup.tap { |s| s['auth']['password'] = '***' if s['auth']['password'] } :
               source

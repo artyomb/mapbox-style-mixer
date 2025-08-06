@@ -11,3 +11,17 @@ styles:
     sources:
       - https://example.com/styles/style2
       - https://example.com/styles/style3
+
+  example:
+    id: 'example_with_auth'
+    name: "Example Style with Authentication"
+    sources:
+      - url: https://example.com/api/secure-style
+        auth:
+          username: demo_user
+          password: demo_pass
+      - url: https://example.com/api/public-style
+      - url: https://another-service.com/api/data
+        auth:
+          username: service_user
+          password: service_pass

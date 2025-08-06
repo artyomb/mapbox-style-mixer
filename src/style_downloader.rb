@@ -44,10 +44,20 @@ class StyleDownloader
     download_fonts(fontstacks, glyphs_urls)
   end
 
-  def download_source_style(source_url, mix_id, index)
+  def download_source_style(source_config, mix_id, index)
+    source_url = source_config.is_a?(Hash) ? source_config['url'] : source_config
+    auth_config = source_config.is_a?(Hash) ? source_config['auth'] : nil
+    
     LOGGER.debug "Downloading source #{index + 1}: #{source_url}"
     
-    resp = Faraday.get(source_url)
+    headers = {}
+    if auth_config
+      credentials = Base64.strict_encode64("#{auth_config['username']}:#{auth_config['password']}")
+      headers['Authorization'] = "Basic #{credentials}"
+      LOGGER.debug "Using Basic Auth for #{source_url}"
+    end
+    
+    resp = Faraday.get(source_url, headers: headers)
     raise "Failed to fetch #{source_url}" unless resp.success?
     
     style_json = JSON.parse(resp.body)
