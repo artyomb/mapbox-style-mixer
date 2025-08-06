@@ -16,6 +16,16 @@
 
 .section
   .section-title 
+    | Application Configuration
+    .header-buttons
+      a.btn href="#" onclick="toggleGlobalConfig()" 📋 View Config
+  
+  .global-config.hidden id="global-config"
+    .config-yaml
+      pre = @config.to_yaml
+
+.section
+  .section-title 
     | Available Styles
     .header-buttons
       a.btn.refresh-btn.disabled href="/refresh" Refresh Styles
@@ -24,28 +34,57 @@
     - @styles.each do |style|
       .style-card.disabled
         .style-header
+          .style-id-section
+            span.id-label Style ID: 
+            span.id-value = style[:id]
           .style-name = style[:name]
-          .style-id = style[:id]
+          .mixed-style-info
+            .info-item
+              span.label Layers: 
+              span.value = style[:mixed_style][:layers_count]
+            .info-item
+              span.label Sources: 
+              span.value = style[:mixed_style][:sources_count]
+            .info-item
+              span.label Fonts: 
+              span.value = style[:fonts].length
         .style-description 
           | Style composition from #{style[:sources_count]} sources
-        .style-stats
-          .stat-item
-            span.stat-label Style Endpoint: 
-            .endpoint-container
-              a.btn.btn-small.copy-btn.disabled href="#" 📋
-              a.endpoint-url href=style[:endpoint] = "#{request.base_url}#{style[:endpoint]}"
-            a.btn.btn-small.disabled href="/map?style=#{style[:id]}" 🌍 Test
+        
+        .style-endpoint-section
+          .endpoint-label Style Endpoint:
+          .endpoint-container
+            a.btn.btn-small.copy-btn.disabled href="#" 📋
+            a.endpoint-url href=style[:endpoint] = "#{request.base_url}#{style[:endpoint]}"
+          a.btn.btn-small.disabled href="/map?style=#{style[:id]}" 🌍 Test
+        
+        .sources-section
+          .sources-title Sources (#{style[:sources_count]})
+          .sources-list
+            - style[:sources].each do |source|
+              .source-item
+                a.btn.btn-small.copy-btn href="#" data-copy-text="#{source}" 📋
+                span.source-url = source
+        
+
+        
+        .fonts-section
+          .fonts-title Fonts (#{style[:fonts].length})
+          .fonts-list
+            - style[:fonts].each do |font|
+              .font-item
+                a.btn.btn-small.copy-btn href="#" data-copy-text="/fonts/#{font[:path]}/0-255.pbf" 📋
+                span.font-name = font[:name]
+                a.font-link href="/fonts/#{font[:path]}/0-255.pbf" Download
           
-        .sprite-section
-          .sprite-title Sprites
-          .sprite-endpoints
+        .sprites-section
+          .sprites-title Sprites (2)
+          .sprites-list
             .sprite-item
-              span.sprite-label PNG: 
-              .endpoint-container
-                a.btn.btn-small.copy-btn.disabled href="#" 📋
-                a.endpoint-url href="/sprite/#{style[:id]}_sprite.png" = "#{request.base_url}/sprite/#{style[:id]}_sprite.png"
+              a.btn.btn-small.copy-btn href="#" data-copy-text="#{request.base_url}/sprite/#{style[:id]}_sprite.png" 📋
+              span.sprite-url = "#{request.base_url}/sprite/#{style[:id]}_sprite.png"
+              a.sprite-link href="/sprite/#{style[:id]}_sprite.png" Download
             .sprite-item
-              span.sprite-label JSON: 
-              .endpoint-container
-                a.btn.btn-small.copy-btn.disabled href="#" 📋
-                a.endpoint-url href="/sprite/#{style[:id]}_sprite.json" = "#{request.base_url}/sprite/#{style[:id]}_sprite.json" 
+              a.btn.btn-small.copy-btn href="#" data-copy-text="#{request.base_url}/sprite/#{style[:id]}_sprite.json" 📋
+              span.sprite-url = "#{request.base_url}/sprite/#{style[:id]}_sprite.json"
+              a.sprite-link href="/sprite/#{style[:id]}_sprite.json" Download 

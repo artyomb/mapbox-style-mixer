@@ -55,9 +55,34 @@ html
       |   border-radius: 3px; 
       |   margin-bottom: 16px;
       | }
-      | .style-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+      | .style-header { 
+      |   display: flex; 
+      |   justify-content: space-between; 
+      |   align-items: flex-start;
+      |   margin-bottom: 8px; 
+      | }
       | .style-name { color: #ffc66d; font-weight: bold; }
-      | .style-id { color: #808080; font-size: 12px; }
+      | .style-id-section {
+      |   display: flex;
+      |   align-items: center;
+      |   gap: 4px;
+      |   margin-bottom: 4px;
+      | }
+      | .id-label {
+      |   color: #808080;
+      |   font-size: 11px;
+      | }
+      | .id-value {
+      |   color: #6897bb;
+      |   font-family: 'Courier New', monospace;
+      |   font-size: 11px;
+      |   font-weight: bold;
+      | }
+      | .mixed-style-info {
+      |   display: flex;
+      |   gap: 12px;
+      |   font-size: 11px;
+      | }
       | .style-description { color: #a9b7c6; font-size: 12px; margin-bottom: 8px; }
       | .style-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
       | .stat-item { font-size: 12px; }
@@ -283,6 +308,135 @@ html
       |   opacity: 0.3;
       |   pointer-events: none;
       | }
+      | 
+      | /* New sections styles */
+      | .global-config {
+      |   background: #2b2b2b;
+      |   border: 1px solid #555555;
+      |   border-radius: 3px;
+      |   padding: 12px;
+      |   margin-top: 8px;
+      |   font-size: 11px;
+      | }
+      | 
+      | .config-yaml pre {
+      |   color: #a9b7c6;
+      |   font-family: 'Courier New', monospace;
+      |   overflow-x: auto;
+      |   white-space: pre-wrap;
+      |   word-wrap: break-word;
+      |   margin: 0;
+      |   line-height: 1.3;
+      | }
+      | 
+      | .sources-section, .fonts-section, .sprites-section {
+      |   margin-top: 12px;
+      |   padding: 8px;
+      |   background: #2b2b2b;
+      |   border-radius: 3px;
+      |   border: 1px solid #464749;
+      | }
+      | 
+      | .sources-title, .fonts-title, .sprites-title {
+      |   color: #ffc66d;
+      |   font-weight: bold;
+      |   margin-bottom: 8px;
+      |   font-size: 13px;
+      | }
+      | 
+      | .sources-summary {
+      |   margin-top: 8px;
+      | }
+      | 
+      | .sources-text {
+      |   color: #a9b7c6;
+      |   font-size: 12px;
+      |   font-family: 'Courier New', monospace;
+      |   word-break: break-all;
+      | }
+      | 
+      | .source-item, .font-item, .sprite-item {
+      |   display: flex;
+      |   justify-content: space-between;
+      |   align-items: center;
+      |   padding: 4px 0;
+      |   border-bottom: 1px solid #464749;
+      |   font-size: 12px;
+      | }
+      | 
+      | .source-item:last-child, .font-item:last-child {
+      |   border-bottom: none;
+      | }
+      | 
+      | .source-url, .font-name, .sprite-url {
+      |   color: #6897bb;
+      |   font-family: 'Courier New', monospace;
+      |   word-break: break-all;
+      |   flex: 1;
+      |   margin-left: 6px;
+      |   margin-right: 8px;
+      | }
+      | 
+      | .font-link, .sprite-link {
+      |   color: #6a9955;
+      |   text-decoration: underline;
+      |   font-size: 11px;
+      |   margin-right: 8px;
+      | }
+      | 
+
+      | 
+      | .info-item {
+      |   display: flex;
+      |   justify-content: space-between;
+      |   align-items: center;
+      |   font-size: 12px;
+      | }
+      | 
+      | .info-item .label {
+      |   color: #808080;
+      | }
+      | 
+      | .info-item .value {
+      |   color: #6897bb;
+      |   font-weight: bold;
+      | }
+      | 
+      | .style-header .info-item {
+      |   font-size: 11px;
+      |   gap: 4px;
+      | }
+      | 
+      | .style-header .info-item .label {
+      |   color: #808080;
+      | }
+      | 
+      | .style-header .info-item .value {
+      |   color: #6897bb;
+      |   font-weight: bold;
+      | }
+      | 
+      | .hidden {
+      |   display: none;
+      | }
+      | 
+      | .style-endpoint-section {
+      |   display: flex;
+      |   align-items: center;
+      |   gap: 8px;
+      |   padding: 8px;
+      |   background: #2b2b2b;
+      |   border-radius: 3px;
+      |   border: 1px solid #464749;
+      |   margin-top: 8px;
+      | }
+      | 
+      | .endpoint-label {
+      |   color: #ffc66d;
+      |   font-weight: bold;
+      |   font-size: 12px;
+      |   white-space: nowrap;
+      | }
   body
     .container
       .header.status-error
@@ -298,13 +452,23 @@ html
       let statusCheckInterval = null;
 
       document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('.copy-btn').forEach(function(btn) {
+        document.querySelectorAll('.endpoint-container .copy-btn').forEach(function(btn) {
           btn.addEventListener('click', function(e) {
             e.preventDefault();
             const container = this.closest('.endpoint-container');
             const urlLink = container.querySelector('.endpoint-url');
             const url = urlLink.href;
             copyToClipboard(url, this, container);
+          });
+        });
+        
+        document.querySelectorAll('.copy-btn:not(.endpoint-container .copy-btn)').forEach(function(btn) {
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const text = this.getAttribute('data-copy-text');
+            if (text) {
+              copyToClipboard(text, this, this.parentElement);
+            }
           });
         });
         
@@ -393,14 +557,21 @@ html
         navigator.clipboard.writeText(text).then(function() {
           btn.textContent = '✓';
           btn.classList.add('copy-success');
-          container.classList.add('copy-success');
+          if (container) container.classList.add('copy-success');
           
           setTimeout(() => {
             btn.textContent = '📋';
             btn.classList.remove('copy-success');
-            container.classList.remove('copy-success');
+            if (container) container.classList.remove('copy-success');
           }, 2000);
         }).catch(function(err) {
           console.error('Could not copy text: ', err);
         });
+      }
+      
+
+      
+      function toggleGlobalConfig() {
+        const config = document.getElementById('global-config');
+        config.classList.toggle('hidden');
       } 

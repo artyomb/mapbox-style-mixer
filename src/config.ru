@@ -47,12 +47,60 @@ helpers do
   
   def get_styles_data(config = $config)
     config['styles'].keys.map do |style_id|
+      style_config = config['styles'][style_id]
       {
         id: style_id,
-        name: config['styles'][style_id]['name'],
+        name: style_config['name'],
         endpoint: "/styles/#{style_id}",
-        sources_count: config['styles'][style_id]['sources'].length
+        sources_count: style_config['sources'].length,
+        sources: style_config['sources'],
+        config: style_config,
+        mixed_style: load_mixed_style_info(style_id),
+        fonts: extract_fonts_from_style(style_id)
       }
+    end
+  end
+  
+  def load_mixed_style_info(style_id)
+    mixed_file = File.expand_path("mixed_styles/#{style_id}.json", __dir__)
+    return { layers_count: 0, sources_count: 0 } unless File.exist?(mixed_file)
+    
+    mixed_style = JSON.parse(File.read(mixed_file))
+    {
+      layers_count: mixed_style.dig('layers')&.size || 0,
+      sources_count: mixed_style.dig('sources')&.size || 0
+    }
+  rescue => e
+    LOGGER.error "Error loading mixed style info for #{style_id}: #{e.message}"
+    { layers_count: 0, sources_count: 0 }
+  end
+  
+  def extract_fonts_from_style(style_id)
+    mixed_file = File.expand_path("mixed_styles/#{style_id}.json", __dir__)
+    return [] unless File.exist?(mixed_file)
+    
+    JSON.parse(File.read(mixed_file))
+      .dig('layers')&.flat_map { |layer| layer.dig('layout', 'text-font') || [] }
+      &.map { |font| { name: font, path: font } }
+      &.uniq || []
+  rescue => e
+    LOGGER.error "Error extracting fonts for #{style_id}: #{e.message}"
+    []
+  end
+  
+
+  
+  def get_safe_config(config = $config)
+    config.dup.tap do |safe_config|
+      safe_config['styles'] = safe_config['styles'].transform_values do |style_config|
+        style_config.dup.tap do |safe_style|
+          safe_style['sources'] = safe_style['sources'].map do |source|
+            source.is_a?(Hash) && source['auth'] ? 
+              source.dup.tap { |s| s['auth']['password'] = '***' if s['auth']['password'] } :
+              source
+          end
+        end
+      end
     end
   end
   
@@ -86,6 +134,7 @@ get '/' do
   @styles = get_styles_data
   @total_sources = @styles.sum { |s| s[:sources_count] }
   @uptime = Time.now - START_TIME
+  @config = get_safe_config
   slim :index
 end
 
