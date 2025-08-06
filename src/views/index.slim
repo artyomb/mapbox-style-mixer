@@ -19,7 +19,7 @@
     | Available Styles
     .header-buttons
       a.btn.refresh-btn.disabled href="/refresh" Refresh Styles
-      a.btn.map-btn.disabled href="/map" target="_blank" 🌍 Map Preview
+      a.btn.map-btn.disabled href="/map" 🌍 Map Preview
   .styles-container
     - @styles.each do |style|
       .style-card.disabled
@@ -33,8 +33,8 @@
             span.stat-label Style Endpoint: 
             .endpoint-container
               a.btn.btn-small.copy-btn.disabled href="#" 📋
-              a.endpoint-url href=style[:endpoint] target="_blank" = "#{request.base_url}#{style[:endpoint]}"
-            a.btn.btn-small.disabled href="/map?style=#{style[:id]}" target="_blank" 🌍 Test
+              a.endpoint-url href=style[:endpoint] = "#{request.base_url}#{style[:endpoint]}"
+            a.btn.btn-small.disabled href="/map?style=#{style[:id]}" 🌍 Test
           
         .sprite-section
           .sprite-title Sprites
@@ -43,9 +43,9 @@
               span.sprite-label PNG: 
               .endpoint-container
                 a.btn.btn-small.copy-btn.disabled href="#" 📋
-                a.endpoint-url href="/sprite/#{style[:id]}_sprite.png" target="_blank" = "#{request.base_url}/sprite/#{style[:id]}_sprite.png"
+                a.endpoint-url href="/sprite/#{style[:id]}_sprite.png" = "#{request.base_url}/sprite/#{style[:id]}_sprite.png"
             .sprite-item
               span.sprite-label JSON: 
               .endpoint-container
                 a.btn.btn-small.copy-btn.disabled href="#" 📋
-                a.endpoint-url href="/sprite/#{style[:id]}_sprite.json" target="_blank" = "#{request.base_url}/sprite/#{style[:id]}_sprite.json" 
+                a.endpoint-url href="/sprite/#{style[:id]}_sprite.json" = "#{request.base_url}/sprite/#{style[:id]}_sprite.json" 
