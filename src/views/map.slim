@@ -33,6 +33,7 @@ javascript:
   let map = null, map_base = null;
   let styleLoaded = false, resourcesLoaded = 0, totalResources = 0;
   let currentStyle = null;
+  const subFilterStatesBeforeGroupToggle = {};
   
   function getLocalizedFilterName(locale, filterId) {
     if (!locale) return filterId;
@@ -68,7 +69,6 @@ javascript:
     document.getElementById('layers-panel').classList.toggle('active', mode === 'layers');
     
     mode === 'filters' ? applyFilterMode() : applyLayerMode();
-    console.log(`Switched to ${mode} mode`);
   }
   
   function applyFilterMode() {
@@ -215,7 +215,6 @@ javascript:
     });
     
     updateLayerButtons();
-    console.log(`Toggled all layers to ${newState ? 'visible' : 'hidden'} in layers mode`);
   }
 
   function toggleLayer(layerId) {
@@ -225,7 +224,6 @@ javascript:
     
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visibility);
     updateLayerButtons();
-    console.log(`Toggled layer ${layerId} to ${layerStates[layerId] ? 'visible' : 'hidden'} in layers mode`);
   }
 
   function updateLayerButtons() {
@@ -237,16 +235,81 @@ javascript:
 
   function toggleAllFilters() {
     if (currentMode !== 'filters') return;
+    if (!currentStyle?.metadata?.filters) return;
+    
     const allActive = Object.values(filterStates).every(state => state);
     const newState = !allActive;
     
-    Object.keys(filterStates).forEach(filterId => {
-      filterStates[filterId] = newState;
-      applyFilter(filterId, newState);
+    Object.keys(currentStyle.metadata.filters).forEach(filterId => {
+      const filterConfig = currentStyle.metadata.filters[filterId];
+      
+      if (filterConfig && filterConfig.length > 1) {
+        filterConfig.forEach(item => {
+          const subFilterKey = `${filterId}_${item.id}`;
+          filterStates[subFilterKey] = newState;
+          applySubFilter(filterId, item.id, newState);
+        });
+        filterStates[filterId] = newState;
+      } else {
+        filterStates[filterId] = newState;
+        applyFilter(filterId, newState);
+      }
     });
     
     updateFilterButtons();
-    console.log(`Toggled all filters to ${newState ? 'active' : 'inactive'} in filters mode`);
+  }
+
+  function toggleFilterGroup(filterId) {
+    if (currentMode !== 'filters') return;
+    
+    const filterConfig = currentStyle.metadata.filters[filterId];
+    const isCurrentlyActive = filterStates[filterId];
+    
+    if (isCurrentlyActive) {
+      if (filterConfig && filterConfig.length > 1) {
+        subFilterStatesBeforeGroupToggle[filterId] = {};
+        filterConfig.forEach(item => {
+          const subFilterKey = `${filterId}_${item.id}`;
+          subFilterStatesBeforeGroupToggle[filterId][item.id] = filterStates[subFilterKey];
+          filterStates[subFilterKey] = false;
+          applySubFilter(filterId, item.id, false);
+        });
+      }
+      filterStates[filterId] = false;
+      applyFilter(filterId, false);
+    } else {
+      if (filterConfig && filterConfig.length > 1 && subFilterStatesBeforeGroupToggle[filterId]) {
+        filterConfig.forEach(item => {
+          const subFilterKey = `${filterId}_${item.id}`;
+          const wasActive = subFilterStatesBeforeGroupToggle[filterId][item.id];
+          filterStates[subFilterKey] = wasActive;
+          applySubFilter(filterId, item.id, wasActive);
+        });
+      }
+      filterStates[filterId] = true;
+      applyFilter(filterId, true);
+    }
+    
+    updateFilterButtons();
+  }
+
+  function toggleSubFilter(groupId, subFilterId) {
+    if (currentMode !== 'filters') return;
+    const subFilterKey = `${groupId}_${subFilterId}`;
+    filterStates[subFilterKey] = !filterStates[subFilterKey];
+    applySubFilter(groupId, subFilterId, filterStates[subFilterKey]);
+    
+    const filterConfig = currentStyle.metadata.filters[groupId];
+    if (filterConfig && filterConfig.length > 1) {
+      const activeSubFilters = filterConfig.filter(item => {
+        const key = `${groupId}_${item.id}`;
+        return filterStates[key];
+      });
+      
+      filterStates[groupId] = activeSubFilters.length > 0;
+    }
+    
+    updateFilterButtons();
   }
 
   function toggleFilter(filterId) {
@@ -254,7 +317,6 @@ javascript:
     filterStates[filterId] = !filterStates[filterId];
     applyFilter(filterId, filterStates[filterId]);
     updateFilterButtons();
-    console.log(`Toggled filter ${filterId} to ${filterStates[filterId] ? 'active' : 'inactive'} in filters mode`);
   }
 
   function applyFilter(filterId, isActive) {
@@ -265,28 +327,71 @@ javascript:
     if (!filterConfig) return;
     
     let foundLayers = 0;
-    const filterIds = filterConfig.map(filter => filter.id);
     
     currentStyle.layers.forEach(layer => {
-      if (layer.metadata?.filter_id && filterIds.includes(layer.metadata.filter_id)) {
-        foundLayers++;
-        if (map.getLayer(layer.id)) {
-          const visibility = isActive ? 'visible' : 'none';
-          map.setLayoutProperty(layer.id, 'visibility', visibility);
-          console.log(`${isActive ? 'Showing' : 'Hiding'} layer ${layer.id} for filter ${filterId} (matches ${layer.metadata.filter_id})`);
-        } else {
-          console.log(`Layer ${layer.id} not found on map`);
+      if (layer.metadata?.filter_id) {
+        const matchingFilter = filterConfig.find(filter => filter.id === layer.metadata.filter_id);
+        if (matchingFilter) {
+          if (filterConfig.length > 1) {
+            const subFilterKey = `${filterId}_${layer.metadata.filter_id}`;
+            const subFilterActive = filterStates[subFilterKey];
+            const visibility = (isActive && subFilterActive) ? 'visible' : 'none';
+            foundLayers++;
+            if (map.getLayer(layer.id)) {
+              map.setLayoutProperty(layer.id, 'visibility', visibility);
+            }
+          } else {
+            foundLayers++;
+            if (map.getLayer(layer.id)) {
+              const visibility = isActive ? 'visible' : 'none';
+              map.setLayoutProperty(layer.id, 'visibility', visibility);
+            }
+          }
         }
       }
     });
+  }
+
+  function applySubFilter(groupId, subFilterId, isActive) {
+    if (currentMode !== 'filters') return;
+    if (!currentStyle?.metadata?.filters) return;
     
-    console.log(`Filter ${filterId}: found ${foundLayers} layers, ${isActive ? 'showing' : 'hiding'} in filters mode`);
+    const filterConfig = currentStyle.metadata.filters[groupId];
+    if (!filterConfig) return;
+    
+    const subFilter = filterConfig.find(filter => filter.id === subFilterId);
+    if (!subFilter) return;
+    
+    let foundLayers = 0;
+    const groupActive = filterStates[groupId];
+    
+    currentStyle.layers.forEach(layer => {
+      if (layer.metadata?.filter_id && layer.metadata.filter_id === subFilterId) {
+        foundLayers++;
+        if (map.getLayer(layer.id)) {
+          const visibility = (groupActive && isActive) ? 'visible' : 'none';
+          map.setLayoutProperty(layer.id, 'visibility', visibility);
+        }
+      }
+    });
   }
 
   function updateFilterButtons() {
     Object.keys(filterStates).forEach(filterId => {
-      const button = document.getElementById(`filter-${filterId}`);
-      if (button) button.className = `control-button ${filterStates[filterId] ? 'active' : 'inactive'}`;
+      const groupButton = document.getElementById(`filter-${filterId}`);
+      if (groupButton) {
+        groupButton.className = `control-button ${filterStates[filterId] ? 'active' : 'inactive'} filter-group-button`;
+      }
+      
+      const subButton = document.getElementById(`filter-sub-${filterId}`);
+      if (subButton) {
+        const subButtons = subButton.querySelectorAll('.filter-sub-button');
+        subButtons.forEach(btn => {
+          const subFilterId = btn.id.replace(`filter-sub-${filterId}-`, '');
+          const subFilterKey = `${filterId}_${subFilterId}`;
+          btn.className = `control-button ${filterStates[subFilterKey] ? 'active' : 'inactive'} filter-sub-button`;
+        });
+      }
     });
   }
 
@@ -318,21 +423,44 @@ javascript:
       const filterButtonsContainer = document.getElementById('filter-buttons');
       
       if (style.metadata?.filters) {
-        console.log('Creating filter buttons for:', Object.keys(style.metadata.filters));
-        
         Object.keys(style.metadata.filters).forEach(filterId => {
-          const button = document.createElement('button');
-          button.id = `filter-${filterId}`;
-          button.className = 'control-button active';
+          const filterConfig = style.metadata.filters[filterId];
           const locale = getLocalizedFilterName(style.metadata.locale, filterId);
-          button.textContent = locale;
-          button.onclick = () => toggleFilter(filterId);
-          filterButtonsContainer.appendChild(button);
+          
+          const groupContainer = document.createElement('div');
+          groupContainer.className = 'filter-group';
+          groupContainer.id = `filter-group-${filterId}`;
+          
+          const groupButton = document.createElement('button');
+          groupButton.id = `filter-${filterId}`;
+          groupButton.className = 'control-button active filter-group-button';
+          groupButton.textContent = locale;
+          groupButton.onclick = () => toggleFilterGroup(filterId);
+          groupContainer.appendChild(groupButton);
+          
+          if (filterConfig.length > 1) {
+            const subButtonsContainer = document.createElement('div');
+            subButtonsContainer.className = 'filter-sub-buttons';
+            subButtonsContainer.id = `filter-sub-${filterId}`;
+            
+            filterConfig.forEach(item => {
+              const subButton = document.createElement('button');
+              subButton.id = `filter-sub-${filterId}-${item.id}`;
+              subButton.className = 'control-button active filter-sub-button';
+              const subLocale = getLocalizedFilterName(style.metadata.locale, item.id);
+              subButton.textContent = subLocale || item.id;
+              subButton.onclick = () => toggleSubFilter(filterId, item.id);
+              subButtonsContainer.appendChild(subButton);
+              
+              filterStates[`${filterId}_${item.id}`] = true;
+            });
+            
+            groupContainer.appendChild(subButtonsContainer);
+          }
+          
+          filterButtonsContainer.appendChild(groupContainer);
           filterStates[filterId] = true;
-          console.log(`Created filter button: ${filterId} -> ${locale} (localized)`);
         });
-      } else {
-        console.log('No filters found in style metadata');
       }
     }).catch(error => console.error('Error loading style:', error));
   }
