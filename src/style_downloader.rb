@@ -47,6 +47,7 @@ class StyleDownloader
   def download_source_style(source_config, mix_id, index)
     source_url = source_config.is_a?(Hash) ? source_config['url'] : source_config
     auth_config = source_config.is_a?(Hash) ? source_config['auth'] : nil
+    config_prefix = source_config.is_a?(Hash) ? source_config['prefix'] : nil
     
     LOGGER.debug "Downloading source #{index + 1}: #{source_url}"
     
@@ -62,10 +63,12 @@ class StyleDownloader
     
     style_json = JSON.parse(resp.body)
     style_id = style_json['id'] || "source_#{index + 1}"
-    font_prefix = begin
+    
+    font_prefix = config_prefix || begin
       base = style_json['id'] || style_json['name']&.downcase&.gsub(/\s+/, '_') || "style_#{index + 1}"
       base.gsub(/[^a-zA-Z0-9_]/, '_').squeeze('_')
     end
+    style_json['_config_prefix'] = font_prefix
     
     save_style_file(style_json, mix_id, style_id, index)
     

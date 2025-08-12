@@ -40,7 +40,7 @@ class StyleMixer
     
     source_styles.each_with_index do |style_data, index|
       prefix = style_prefixes[index]
-      %w[sources layers metadata].each { |type| send("merge_#{type}", mixed_style, style_data, prefix) }
+      %w[sources metadata layers].each { |type| send("merge_#{type}", mixed_style, style_data, prefix) }
     end
     
     require_relative 'sprite_merger'
@@ -84,7 +84,7 @@ class StyleMixer
     used_prefixes = Set.new
     
     source_styles.map.with_index do |style, index|
-      base_prefix = style['id'] || style['name']&.downcase&.gsub(/\s+/, '_') || "style_#{index + 1}"
+      base_prefix = style['_config_prefix'] || style['id'] || style['name']&.downcase&.gsub(/\s+/, '_') || "style_#{index + 1}"
       clean_prefix = base_prefix.gsub(/[^a-zA-Z0-9_]/, '_').squeeze('_')
       prefix = resolve_conflicts(clean_prefix, used_prefixes)
       used_prefixes.add(prefix)
@@ -114,9 +114,16 @@ class StyleMixer
         new_layer['layout']['text-font'] = layer['layout']['text-font'].map { |font| "#{prefix}/#{font}" }
       end
       
+      new_layer['metadata'] ||= {}
+      
       if layer.dig('metadata', 'filter_id')
-        new_layer['metadata'] = layer['metadata'].dup
-        new_layer['metadata']['filter_id'] = "#{prefix}_#{layer['metadata']['filter_id']}"
+        if layer['metadata']['filter_id'] == prefix
+          new_layer['metadata']['filter_id'] = prefix
+        else
+          new_layer['metadata']['filter_id'] = "#{prefix}_#{layer['metadata']['filter_id']}"
+        end
+      else
+        new_layer['metadata']['filter_id'] = prefix
       end
       
       mixed_style['layers'] << new_layer
@@ -132,18 +139,33 @@ class StyleMixer
   end
 
   def merge_filters(mixed_style, source_style, prefix)
-    return unless source_style.dig('metadata', 'filters')
-    
-    source_style['metadata']['filters'].each do |filter_group, filters|
-      prefixed_filters = filters.map do |filter|
-        filter.dup.tap do |new_filter|
-          new_filter['id'] = "#{prefix}_#{filter['id']}" if filter['id']
-          new_filter['group_id'] = "#{prefix}_#{filter['group_id']}" if filter['group_id']
+    if source_style.dig('metadata', 'filters')
+      source_style['metadata']['filters'].each do |filter_group, filters|
+        prefixed_filters = filters.map do |filter|
+          filter.dup.tap do |new_filter|
+            new_filter['id'] = "#{prefix}_#{filter['id']}" if filter['id']
+            new_filter['group_id'] = "#{prefix}_#{filter['group_id']}" if filter['group_id']
+          end
         end
+        
+        mixed_style['metadata']['filters']["#{prefix}_#{filter_group}"] = prefixed_filters
       end
-      
-      mixed_style['metadata']['filters']["#{prefix}_#{filter_group}"] = prefixed_filters
+    else
+      create_style_filter(mixed_style, source_style, prefix)
     end
+  end
+
+  def create_style_filter(mixed_style, source_style, prefix)
+    style_name = prefix.gsub('_', ' ').capitalize
+    
+    mixed_style['metadata']['filters'][prefix] = [
+      {
+        'id' => prefix,
+        'name' => style_name
+      }
+    ]
+    
+    mixed_style['metadata']['locale']['en-US'][prefix] = style_name
   end
 
   def merge_locale(mixed_style, source_style, prefix)

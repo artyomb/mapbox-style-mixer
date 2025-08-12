@@ -63,9 +63,10 @@
           .sources-title Sources (#{style[:sources_count]})
           .sources-list
             - style[:sources].each do |source|
+              - source_url = source.is_a?(Hash) ? source['url'] : source
               .source-item
-                a.btn.btn-small.copy-btn href="#" data-copy-text="#{source}" 📋
-                span.source-url = source
+                a.btn.btn-small.copy-btn href="#" data-copy-text="#{source_url}" 📋
+                span.source-url = source_url
         
 
         

@@ -1,18 +1,24 @@
 styles:
-  mix_style1:
-    id: 'mix_style1'
-    name: "Mix Style 1"
+  demo_style1:
+    id: 'demo_style1'
+    name: "Demo Style 1"
     sources:
-      - https://example.com/styles/style1
+      - url: https://demo.example.com/styles/basic
+      - url: https://demo.example.com/styles/weather
+      - url: https://demo.example.com/styles/traffic
 
-  mix_style2:
-    id: 'mix_style2'
-    name: "Mix Style 2"
+  demo_style2:
+    id: 'demo_style2'
+    name: "Demo Style 2"
     sources:
-      - https://example.com/styles/style2
-      - https://example.com/styles/style3
+      - url: https://demo.example.com/styles/terrain
+        prefix: terrain_layer
+      - url: https://demo.example.com/styles/poi
+        prefix: points_of_interest
+      - url: https://demo.example.com/styles/transport
+        prefix: transport_network
 
-  example:
+  example_with_auth:
     id: 'example_with_auth'
     name: "Example Style with Authentication"
     sources:
