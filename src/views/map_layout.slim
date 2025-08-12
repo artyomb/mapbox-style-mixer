@@ -97,6 +97,45 @@ html
       | .stat-desc { font-size: 12px; color: #808080; }
       | .error-message { color: #f44747; font-size: 12px; margin-top: 4px; }
       | .success-message { color: #6a9955; font-size: 12px; margin-top: 4px; }
+      | .performance-overlay {
+      |   position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 1000;
+      |   background: rgba(43, 43, 43, 0.95); border: 1px solid #555555;
+      |   border-radius: 0 0 6px 6px; padding: 0; min-width: 400px;
+      |   backdrop-filter: blur(10px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      |   transition: all 0.3s ease;
+      | }
+      | .performance-toggle {
+      |   position: absolute; top: 4px; right: 4px; z-index: 1001;
+      |   background: none; border: none; color: #808080; cursor: pointer;
+      |   font-size: 14px; padding: 0; width: 16px; height: 16px;
+      |   display: flex; align-items: center; justify-content: center;
+      |   border-radius: 2px; transition: all 0.2s ease;
+      | }
+      | .performance-toggle:hover {
+      |   background: #4b4d4f; color: #a9b7c6;
+      | }
+      | .performance-content {
+      |   padding: 8px 12px;
+      | }
+      | .metric-row {
+      |   display: flex; justify-content: space-between; align-items: center;
+      |   margin-bottom: 6px;
+      | }
+      | .metric-row:last-child { margin-bottom: 0; }
+      | .metric {
+      |   display: flex; align-items: center; gap: 4px;
+      |   font-size: 11px; flex: 1; justify-content: center;
+      | }
+      | .metric-label {
+      |   color: #808080; font-weight: 500;
+      | }
+      | .metric-value {
+      |   color: #6897bb; font-weight: bold; font-family: 'Courier New', monospace;
+      |   min-width: 40px; text-align: center;
+      | }
+      | .metric-value.warning { color: #ffc66d; }
+      | .metric-value.error { color: #f44747; }
+      | .metric-value.success { color: #6a9955; }
       | #map-container {
       |   position: relative; width: 100%; height: calc(100vh - 100px); background: #2b2b2b;
       | }

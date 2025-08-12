@@ -25,6 +25,33 @@ ruby:
 #map-container
   #map_base.map-layer
   #map.map-layer
+  
+  #performance-panel.performance-overlay
+    button.performance-toggle onclick="togglePerformancePanel()" ×
+    .performance-content
+      .metric-row
+        .metric
+          span.metric-label FPS:
+          span.metric-value#fps-value 0
+        .metric
+          span.metric-label Frame:
+          span.metric-value#frame-time-value 0ms
+        .metric
+          span.metric-label Memory:
+          span.metric-value#memory-usage-value 0MB
+        .metric
+          span.metric-label Zoom:
+          span.metric-value#zoom-level-value 0
+      .metric-row
+        .metric
+          span.metric-label Tiles:
+          span.metric-value#tiles-loaded-value 0
+        .metric
+          span.metric-label Loading:
+          span.metric-value#tiles-loading-value 0
+        .metric
+          span.metric-label Layers:
+          span.metric-value#layers-active-value 0
 
 javascript:
   const style_url = '#{style_url}';
@@ -208,6 +235,8 @@ javascript:
       });
       
       hideLoading();
+      startPerformanceMonitoring();
+      requestAnimationFrame(countFrame);
     });
   }
 
@@ -466,6 +495,107 @@ javascript:
         filterStates[filterId] = true;
       });
     }
+  }
+
+  let fpsCounter = 0, lastFpsTime = 0, frameCount = 0;
+  let performanceMonitor = null;
+  let performancePanelVisible = true;
+
+  function togglePerformancePanel() {
+    const panel = document.getElementById('performance-panel');
+    performancePanelVisible = !performancePanelVisible;
+    panel.style.display = performancePanelVisible ? 'block' : 'none';
+  }
+
+  function startPerformanceMonitoring() {
+    if (performanceMonitor) return;
+    performanceMonitor = setInterval(updatePerformanceMetrics, 1000);
+  }
+
+  function stopPerformanceMonitoring() {
+    if (performanceMonitor) {
+      clearInterval(performanceMonitor);
+      performanceMonitor = null;
+    }
+  }
+
+  function updatePerformanceMetrics() {
+    if (!map) return;
+
+    const now = performance.now();
+    if (lastFpsTime === 0) {
+      lastFpsTime = now;
+      frameCount = 0;
+    }
+    
+    frameCount++;
+    if (now - lastFpsTime >= 1000) {
+      const fps = Math.round((frameCount * 1000) / (now - lastFpsTime));
+      document.getElementById('fps-value').textContent = fps;
+      document.getElementById('fps-value').className = 
+        `metric-value ${fps < 30 ? 'error' : fps < 50 ? 'warning' : 'success'}`;
+      
+      const frameTime = Math.round(1000 / fps);
+      document.getElementById('frame-time-value').textContent = `${frameTime}ms`;
+      document.getElementById('frame-time-value').className = 
+        `metric-value ${frameTime > 33 ? 'error' : frameTime > 20 ? 'warning' : 'success'}`;
+      
+      lastFpsTime = now;
+      frameCount = 0;
+    }
+
+    try {
+      const tilesLoaded = map.getStyle()?.sources ? 
+        Object.keys(map.getStyle().sources).length : 0;
+      document.getElementById('tiles-loaded-value').textContent = tilesLoaded;
+      
+      const loadingTiles = map.isStyleLoaded() ? 0 : 1;
+      document.getElementById('tiles-loading-value').textContent = loadingTiles;
+    } catch (e) {
+      console.warn('Could not get tile metrics:', e);
+    }
+
+    try {
+      if (performance.memory) {
+        const memoryMB = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+        document.getElementById('memory-usage-value').textContent = `${memoryMB}MB`;
+        document.getElementById('memory-usage-value').className = 
+          `metric-value ${memoryMB > 500 ? 'error' : memoryMB > 200 ? 'warning' : 'success'}`;
+      } else {
+        document.getElementById('memory-usage-value').textContent = 'N/A';
+      }
+    } catch (e) {
+      document.getElementById('memory-usage-value').textContent = 'N/A';
+    }
+
+    try {
+      let activeLayers = 0;
+      if (currentStyle?.layers) {
+        currentStyle.layers.forEach(layer => {
+          if (map.getLayer(layer.id)) {
+            const visibility = map.getLayoutProperty(layer.id, 'visibility');
+            if (visibility === 'visible') activeLayers++;
+          }
+        });
+      }
+      document.getElementById('layers-active-value').textContent = activeLayers;
+      document.getElementById('layers-active-value').className = 
+        `metric-value ${activeLayers > 50 ? 'warning' : 'success'}`;
+    } catch (e) {
+      document.getElementById('layers-active-value').textContent = 'N/A';
+    }
+
+    try {
+      const zoom = map.getZoom();
+      document.getElementById('zoom-level-value').textContent = zoom.toFixed(1);
+    } catch (e) {
+      document.getElementById('zoom-level-value').textContent = 'N/A';
+    }
+  }
+
+  function countFrame() {
+    frameCount++;
+    requestAnimationFrame(countFrame);
   }
 
   showLoading();
