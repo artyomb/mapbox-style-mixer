@@ -75,7 +75,8 @@ class StyleMixer
   end
 
   def load_source_styles(mix_id)
-    files = Dir.glob("#{@raw_dir}/#{mix_id}_*.json").sort
+    files = Dir.glob("#{@raw_dir}/#{mix_id}_*.json")
+    files.sort_by! { |file| File.basename(file).match(/_(\d+)\.json$/)[1].to_i }
     LOGGER.debug "Loading #{files.length} source styles for #{mix_id}"
     files.map { |file| JSON.parse(File.read(file)) }
   end
