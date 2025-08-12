@@ -62,12 +62,16 @@ class StyleDownloader
     
     style_json = JSON.parse(resp.body)
     style_id = style_json['id'] || "source_#{index + 1}"
+    font_prefix = begin
+      base = style_json['id'] || style_json['name']&.downcase&.gsub(/\s+/, '_') || "style_#{index + 1}"
+      base.gsub(/[^a-zA-Z0-9_]/, '_').squeeze('_')
+    end
     
     save_style_file(style_json, mix_id, style_id, index)
     
     {
       sprites: extract_sprites(style_json, mix_id, style_id, index),
-      fontstacks: extract_fontstacks(style_json, style_id),
+      fontstacks: extract_fontstacks(style_json, font_prefix),
       glyphs_url: style_json['glyphs']
     }
   end
@@ -117,7 +121,7 @@ class StyleDownloader
     LOGGER.info "Downloading fonts for: #{fontstack} (style: #{style_id})"
     
     ranges = (0..65535).step(256).map { |start| "#{start}-#{start+255}" }
-    enc = URI.encode_www_form_component(fontstack)
+    enc = fontstack.gsub(' ', '%20')
     
     Parallel.each(ranges, in_threads: 8) do |range|
       download_font_range(font_dir, enc, range, all_glyphs_urls)
