@@ -119,11 +119,7 @@ class StyleMixer
       new_layer['metadata'] ||= {}
       
       if layer.dig('metadata', 'filter_id')
-        if layer['metadata']['filter_id'] == prefix
-          new_layer['metadata']['filter_id'] = prefix
-        else
-          new_layer['metadata']['filter_id'] = "#{prefix}_#{layer['metadata']['filter_id']}"
-        end
+        new_layer['metadata']['filter_id'] = "#{prefix}_#{layer['metadata']['filter_id']}"
       else
         new_layer['metadata']['filter_id'] = prefix
       end
@@ -146,7 +142,11 @@ class StyleMixer
         prefixed_filters = filters.map do |filter|
           filter.dup.tap do |new_filter|
             new_filter['id'] = "#{prefix}_#{filter['id']}" if filter['id']
-            new_filter['group_id'] = "#{prefix}_#{filter['group_id']}" if filter['group_id']
+            if filter['group_id']
+              new_filter['group_id'] = "#{prefix}_#{filter['group_id']}"
+            end
+            new_filter['icon'] = "#{prefix}_#{filter['icon']}" if filter['icon']
+            new_filter['type'] = "#{prefix}_#{filter['type']}" if filter['type']
           end
         end
         
