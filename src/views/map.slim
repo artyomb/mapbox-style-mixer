@@ -13,6 +13,7 @@ ruby:
       button.mode-button.active onclick="switchMode('filters')" Filters
       button.mode-button onclick="switchMode('layers')" Layers
     button.control-button onclick="toggleBasemap()" Toggle Basemap
+    button.control-button onclick="toggleHoverMode()" id="hover-mode-btn" Hover Mode
     
     #filters-panel.control-panel.active
       button.control-button onclick="toggleAllFilters()" Toggle All Filters
@@ -56,6 +57,7 @@ ruby:
 javascript:
   const style_url = '#{style_url}';
   let showBasemap = true, currentMode = 'filters';
+  let hoverMode = 'click';
   let layerStates = {}, filterStates = {};
   let map = null, map_base = null;
   let styleLoaded = false, resourcesLoaded = 0, totalResources = 0;
@@ -201,7 +203,10 @@ javascript:
 
       map.on('click', function (e) {
         const features = this.queryRenderedFeatures(e.point);
-        if (features.length > 0) console.log('Clicked feature:', features[0]);
+        if (features.length > 0) {
+          hoverMode === 'click' && popupFeature(features, e);
+          console.log('Clicked feature:', features[0]);
+        }
       });
 
       function popupFeature(features, e) {
@@ -220,29 +225,51 @@ javascript:
 
       let timeout, point;
       map.on('mousemove', (e) => {
-        clearTimeout(timeout);
-        const features = map.queryRenderedFeatures(e.point);
-        
-        if (features.length > 0) {
-          map.getCanvas().style.cursor = 'crosshair';
-          timeout = setTimeout(() => popupFeature(features, e), 100);
-        } else {
+        if (hoverMode !== 'hover') {
           map.getCanvas().style.cursor = '';
           popup.remove();
+          return;
         }
-        if (point && !point.equals(e.point)) { popup.remove(); }
+        
+        clearTimeout(timeout);
+        const features = map.queryRenderedFeatures(e.point);
+        const hasFeatures = features.length > 0;
+        
+        map.getCanvas().style.cursor = hasFeatures ? 'crosshair' : '';
+        if (hasFeatures) {
+          timeout = setTimeout(() => popupFeature(features, e), 100);
+        } else {
+          popup.remove();
+        }
+        
+        if (point && !point.equals(e.point)) popup.remove();
         point = e.point.clone();
       });
       
       hideLoading();
       startPerformanceMonitoring();
       requestAnimationFrame(countFrame);
+      updateHoverModeButton();
     });
   }
 
   function toggleBasemap() {
     showBasemap = !showBasemap;
     document.getElementById('map_base').style.display = showBasemap ? 'block' : 'none';
+  }
+
+  function toggleHoverMode() {
+    hoverMode = hoverMode === 'hover' ? 'click' : 'hover';
+    updateHoverModeButton();
+  }
+
+  function updateHoverModeButton() {
+    const btn = document.getElementById('hover-mode-btn');
+    if (!btn) return;
+    
+    const isHoverMode = hoverMode === 'hover';
+    btn.textContent = isHoverMode ? 'Click Mode' : 'Hover Mode';
+    btn.className = `control-button ${isHoverMode ? 'active' : ''}`;
   }
 
   function toggleAllLayers() {
