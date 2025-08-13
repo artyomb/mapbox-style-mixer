@@ -2,10 +2,11 @@ ruby:
   style_name = params[:style]
   style_url = style_name ? "#{request.base_url}/styles/#{style_name}" : nil
 
-#loading-overlay
-  .loading-content
-    .spinner
+#loading-indicator
+  .loading-progress
     .loading-text Loading map...
+    .progress-bar
+      .progress-fill
 
 - if style_name
   .layer-controls
@@ -61,6 +62,7 @@ javascript:
   let layerStates = {}, filterStates = {};
   let map = null, map_base = null;
   let styleLoaded = false, resourcesLoaded = 0, totalResources = 0;
+  let tilesLoaded = 0, tilesTotal = 0;
   let currentStyle = null;
   const subFilterStatesBeforeGroupToggle = {};
   
@@ -79,15 +81,31 @@ javascript:
     return filterId;
   }
   
-  function showLoading() { document.getElementById('loading-overlay').style.display = 'flex'; }
-  function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
+  const showLoading = () => document.getElementById('loading-indicator').style.display = 'block';
+  const hideLoading = () => document.getElementById('loading-indicator').style.display = 'none';
   
-  function updateLoadingProgress() {
+  const updateLoadingProgress = () => {
+    let progress = 0;
+    let loadingText = 'Loading map...';
+    
     if (totalResources > 0) {
-      const progress = Math.round((resourcesLoaded / totalResources) * 100);
-      document.querySelector('.loading-text').textContent = `Loading map... ${progress}%`;
+      const resourceProgress = Math.round((resourcesLoaded / totalResources) * 50);
+      progress = resourceProgress;
+      loadingText = `Loading resources... ${resourceProgress * 2}%`;
     }
-  }
+    
+    if (map?.getStyle()?.sources) {
+      const sources = Object.keys(map.getStyle().sources);
+      if (sources.length > 0) {
+        const tileProgress = Math.round((tilesLoaded || 0) / sources.length * 50);
+        progress = Math.min(100, (totalResources > 0 ? 50 : 0) + tileProgress);
+        loadingText = `Loading tiles... ${progress}%`;
+      }
+    }
+    
+    document.querySelector('.loading-text').textContent = loadingText;
+    document.querySelector('.progress-fill').style.width = `${progress}%`;
+  };
   
   function switchMode(mode) {
     currentMode = mode;
@@ -126,7 +144,7 @@ javascript:
     });
   }
   
-  function checkStyleResources(style) {
+  const checkStyleResources = (style) => {
     totalResources = 0; resourcesLoaded = 0;
     const promises = [];
     
@@ -145,15 +163,15 @@ javascript:
       promises.push(Promise.resolve().then(() => { resourcesLoaded++; updateLoadingProgress(); }));
     }
     
-    if (totalResources === 0) {
-      styleLoaded = true; initializeMap();
-    } else {
-      Promise.all(promises).then(() => { styleLoaded = true; initializeMap(); });
+    if (totalResources > 0) {
+      showLoading();
+      updateLoadingProgress();
+      Promise.all(promises).then(() => { styleLoaded = true; });
     }
-  }
+  };
   
   function initializeMap() {
-    if (!styleLoaded) return;
+    showLoading();
     
     map_base = new maplibregl.Map({
       container: 'map_base', style: 'https://demotiles.maplibre.org/style.json',
@@ -246,7 +264,25 @@ javascript:
         point = e.point.clone();
       });
       
-      hideLoading();
+      map.on('sourcedata', (e) => {
+        if (e.sourceId && e.isSourceLoaded) {
+          tilesLoaded++;
+          if (tilesTotal === 0) tilesTotal = Object.keys(map.getStyle().sources).length;
+          updateLoadingProgress();
+        }
+      });
+      
+      map.on('idle', () => {
+        const allResourcesLoaded = totalResources === 0 || styleLoaded;
+        const allTilesLoaded = tilesTotal === 0 || tilesLoaded >= tilesTotal;
+        
+        if (allResourcesLoaded && allTilesLoaded) {
+          hideLoading();
+        }
+      });
+      
+      setTimeout(() => hideLoading(), 10000);
+      
       startPerformanceMonitoring();
       requestAnimationFrame(countFrame);
       updateHoverModeButton();
@@ -625,15 +661,12 @@ javascript:
     requestAnimationFrame(countFrame);
   }
 
-  showLoading();
+  initializeMap();
   
   if (style_url) {
     fetch(style_url).then(response => response.json()).then(style => {
       checkStyleResources(style);
     }).catch(error => {
       console.error('Error loading style:', error);
-      styleLoaded = true; initializeMap();
     });
-  } else {
-    styleLoaded = true; initializeMap();
   } 
