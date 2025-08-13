@@ -200,29 +200,37 @@ html
       |   display: flex;
       |   flex-direction: column;
       |   gap: 2px;
-      |   padding: 4px;
+      |   padding: 3px;
       |   background: #3c3f41;
+      |   border: 1px solid #6a9955;
+      |   border-radius: 2px;
+      |   box-sizing: border-box;
       | }
       | .filter-sub-button {
       |   font-size: 10px;
       |   padding: 4px 8px;
       |   margin: 0;
-      |   background: #313335;
-      |   border: 1px solid #464749;
+      |   background: #ffc66d;
+      |   color: #2b2b2b;
+      |   border: 1px solid #e6b85a;
+      |   border-radius: 2px;
+      |   cursor: pointer;
+      |   transition: all 0.2s ease;
       | }
       | .filter-sub-button:hover {
-      |   background: #4b4d4f;
-      |   border-color: #555555;
+      |   background: #ffd87d;
+      |   border-color: #f0c050;
       | }
       | .filter-sub-button.active {
-      |   background: #6a9955;
-      |   color: #ffffff;
-      |   border-color: #7bb366;
+      |   background: #ffd87d;
+      |   color: #2b2b2b;
+      |   border-color: #f0c050;
+      |   font-weight: bold;
       | }
       | .filter-sub-button.inactive {
-      |   background: #2b2b2b;
-      |   color: #666666;
-      |   border-color: #3c3f41;
+      |   background: #3c3f41;
+      |   color: #808080;
+      |   border-color: #464749;
       | }
 
       | .toggle-basemap {
