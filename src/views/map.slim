@@ -196,6 +196,7 @@ javascript:
     });
 
     map.addControl(new maplibregl.NavigationControl());
+    map.on('error', (e) => { console.error('[MapLibre ERROR]', e?.error || e); });
 
     if (style_url) {
       function syncMaps(map, map_base) {
@@ -228,16 +229,8 @@ javascript:
         }
       };
 
-      if (style_url) {
-        const stylePromise = fetch(style_url)
-          .then(response => response.json())
-          .then(style => { currentStyle = style; })
-          .catch(() => {});
-        const idlePromise = new Promise(resolve => map.once('idle', resolve));
-        Promise.all([stylePromise, idlePromise]).then(onStyleReady);
-      } else {
-        map.once('idle', onStyleReady);
-      }
+      try { currentStyle = map.getStyle(); if (currentStyle) { checkStyleResources(currentStyle); } } catch (_) {}
+      map.once('idle', onStyleReady);
       
       const popup = new maplibregl.Popup({closeButton: false, closeOnClick: false});
 
@@ -688,10 +681,3 @@ javascript:
 
   initializeMap();
   
-  if (style_url) {
-    fetch(style_url).then(response => response.json()).then(style => {
-      checkStyleResources(style);
-    }).catch(error => {
-      console.error('Error loading style:', error);
-    });
-  } 
