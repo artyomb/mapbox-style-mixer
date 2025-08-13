@@ -11,8 +11,8 @@ ruby:
 - if style_name
   .layer-controls
     .mode-switcher
-      button.mode-button.active onclick="switchMode('filters')" Filters
-      button.mode-button onclick="switchMode('layers')" Layers
+      button.mode-button.active id="mode-filters" onclick="switchMode(this, 'filters')" Filters
+      button.mode-button id="mode-layers" onclick="switchMode(this, 'layers')" Layers
     button.control-button onclick="toggleBasemap()" Toggle Basemap
     button.control-button onclick="toggleHoverMode()" id="hover-mode-btn" Hover Mode
     
@@ -26,7 +26,7 @@ ruby:
 
 #map-container
   #map_base.map-layer
-  #map.map-layer
+  #map.map-layer data-style-url="#{style_url}"
   
   #performance-panel.performance-overlay
     button.performance-toggle onclick="togglePerformancePanel()" ×
@@ -56,7 +56,8 @@ ruby:
           span.metric-value#layers-active-value 0
 
 javascript:
-  const style_url = '#{style_url}';
+  const mapEl = document.getElementById('map');
+  const style_url = (mapEl && mapEl.dataset) ? (mapEl.dataset.styleUrl || null) : null;
   let showBasemap = true, currentMode = 'filters';
   let hoverMode = 'click';
   let layerStates = {}, filterStates = {};
@@ -65,6 +66,11 @@ javascript:
   let tilesLoaded = 0, tilesTotal = 0;
   let currentStyle = null;
   const subFilterStatesBeforeGroupToggle = {};
+  const layerIdToDomId = {};
+
+  function toDomId(prefix, id) {
+    return `${prefix}-${String(id).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+  }
   
   function getLocalizedFilterName(locale, filterId) {
     if (!locale) return filterId;
@@ -107,10 +113,14 @@ javascript:
     document.querySelector('.progress-fill').style.width = `${progress}%`;
   };
   
-  function switchMode(mode) {
+  function switchMode(arg1, arg2) {
+    const isStringArg = typeof arg1 === 'string';
+    const mode = isStringArg ? arg1 : arg2;
+    const target = isStringArg ? null : (arg1?.currentTarget || arg1);
     currentMode = mode;
     document.querySelectorAll('.mode-button').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    if (target) target.classList.add('active');
+    else document.getElementById(`mode-${mode}`)?.classList.add('active');
     
     document.getElementById('filters-panel').classList.toggle('active', mode === 'filters');
     document.getElementById('layers-panel').classList.toggle('active', mode === 'layers');
@@ -178,8 +188,7 @@ javascript:
       center: [35.15, 47.41], zoom: 2, attributionControl: false,
       interactive: false, trackResize: false, validateStyle: false
     });
-    map_base.triggerRepaint = () => {};
-    map_base.on('load', () => map_base.setProjection({ type: 'globe' }));
+    map_base.once('idle', () => { try { map_base.setProjection({ type: 'globe' }); } catch (_) {} });
 
     map = new maplibregl.Map({
       container: 'map', style: style_url || 'https://demotiles.maplibre.org/style.json',
@@ -187,7 +196,6 @@ javascript:
     });
 
     map.addControl(new maplibregl.NavigationControl());
-    map.addControl(new maplibregl.GlobeControl(), 'top-right');
 
     if (style_url) {
       function syncMaps(map, map_base) {
@@ -195,26 +203,40 @@ javascript:
           const center = map.getCenter(), zoom = map.getZoom();
           const bearing = map.getBearing(), pitch = map.getPitch();
           map_base.jumpTo({center, zoom, bearing, pitch});
-          map_base.redraw(); map_base.resize();
+          map_base.triggerRepaint(); map_base.resize();
         });
       }
       syncMaps(map, map_base);
       map.on('projectiontransition', (e) => {
-        map_base.setProjection({ type: e.newProjection });
-        map_base.redraw(); map_base.resize();
+        const applyProjection = () => {
+          try { map_base.setProjection({ type: e.newProjection }); } catch (_) {}
+          map_base.triggerRepaint(); map_base.resize();
+        };
+        if (map_base.isStyleLoaded && map_base.isStyleLoaded()) applyProjection();
+        else map_base.once('idle', applyProjection);
       });
     }
 
     map.on('load', async () => {
-      map.setProjection({ type: 'globe' });
-      
-      if (style_url) {
-        fetch(style_url).then(response => response.json()).then(style => {
-          currentStyle = style;
-          createLayerButtons(); 
-          createFilterButtons(); 
+      const onStyleReady = () => {
+        try { map.setProjection({ type: 'globe' }); } catch (_) {}
+        try { map.addControl(new maplibregl.GlobeControl(), 'top-right'); } catch (_) {}
+        if (currentStyle) {
+          createLayerButtons();
+          createFilterButtons();
           applyFilterMode();
-        });
+        }
+      };
+
+      if (style_url) {
+        const stylePromise = fetch(style_url)
+          .then(response => response.json())
+          .then(style => { currentStyle = style; })
+          .catch(() => {});
+        const idlePromise = new Promise(resolve => map.once('idle', resolve));
+        Promise.all([stylePromise, idlePromise]).then(onStyleReady);
+      } else {
+        map.once('idle', onStyleReady);
       }
       
       const popup = new maplibregl.Popup({closeButton: false, closeOnClick: false});
@@ -333,7 +355,8 @@ javascript:
 
   function updateLayerButtons() {
     Object.keys(layerStates).forEach(layerId => {
-      const button = document.getElementById(`layer-${layerId}`);
+      const btnId = layerIdToDomId[layerId] || toDomId('layer', layerId);
+      const button = document.getElementById(btnId);
       if (button) button.className = `control-button ${layerStates[layerId] ? 'active' : 'inactive'}`;
     });
   }
@@ -502,12 +525,14 @@ javascript:
     if (currentStyle.layers) {
       currentStyle.layers.forEach(layer => {
         const button = document.createElement('button');
-        button.id = `layer-${layer.id}`;
+        const buttonId = toDomId('layer', layer.id);
+        button.id = buttonId;
         button.className = 'control-button active';
         button.textContent = layer.id;
         button.onclick = () => toggleLayer(layer.id);
         layerButtonsContainer.appendChild(button);
         layerStates[layer.id] = true;
+        layerIdToDomId[layer.id] = buttonId;
       });
     }
   }
