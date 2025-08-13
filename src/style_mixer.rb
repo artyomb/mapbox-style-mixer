@@ -157,7 +157,14 @@ class StyleMixer
   end
 
   def create_style_filter(mixed_style, source_style, prefix)
-    style_name = prefix.gsub('_', ' ').capitalize
+    style_name = prefix.to_s
+      .gsub(/([a-z0-9])([A-Z])/, '\\1 \\2')
+      .tr('_-', ' ')
+      .squeeze(' ')
+      .strip
+      .split
+      .map!(&:capitalize)
+      .join(' ')
     
     mixed_style['metadata']['filters'][prefix] = [
       {
