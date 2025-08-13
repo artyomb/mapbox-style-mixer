@@ -113,7 +113,7 @@ class StyleMixer
       new_layer['source'] = "#{prefix}_#{layer['source']}" if layer['source']
       
       if layer.dig('layout', 'text-font')
-        new_layer['layout']['text-font'] = layer['layout']['text-font'].map { |font| "#{prefix}/#{font}" }
+        new_layer['layout']['text-font'] = process_text_font(layer['layout']['text-font'], prefix)
       end
       
       new_layer['metadata'] ||= {}
@@ -190,6 +190,28 @@ class StyleMixer
     %w[feature_inspector feature_geometry find_in_point popup_template hover_template maputnik:renderer].each do |field|
       mixed_style['metadata'][field] = source_style['metadata'][field] if source_style['metadata'][field]
     end
+  end
+
+  def process_text_font(font_config, prefix)
+    case font_config
+    when Array then font_config.map { |font| "#{prefix}/#{font}" }
+    when Hash then process_dynamic_font(font_config, prefix)
+    else font_config
+    end
+  end
+
+  def process_dynamic_font(font_config, prefix)
+    deep_dup(font_config).tap do |config|
+      config['stops']&.map! { |stop| process_stop(stop, prefix) }
+    end
+  end
+
+  def process_stop(stop, prefix)
+    return stop unless stop.is_a?(Array) && stop[1]
+    
+    fonts = stop[1]
+    new_fonts = fonts.is_a?(Array) ? fonts.map { |f| "#{prefix}/#{f}" } : ["#{prefix}/#{fonts}"]
+    [stop[0], new_fonts]
   end
 
   def deep_dup(obj)
