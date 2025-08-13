@@ -361,6 +361,7 @@ javascript:
     const allActive = Object.values(filterStates).every(state => state);
     const newState = !allActive;
     
+    Object.keys(subFilterStatesBeforeGroupToggle).forEach(k => delete subFilterStatesBeforeGroupToggle[k]);
     Object.keys(currentStyle.metadata.filters).forEach(filterId => {
       const filterConfig = currentStyle.metadata.filters[filterId];
       
@@ -368,13 +369,11 @@ javascript:
         filterConfig.forEach(item => {
           const subFilterKey = `${filterId}_${item.id}`;
           filterStates[subFilterKey] = newState;
-          applySubFilter(filterId, item.id, newState);
         });
-        filterStates[filterId] = newState;
-      } else {
-        filterStates[filterId] = newState;
-        applyFilter(filterId, newState);
       }
+
+      filterStates[filterId] = newState;
+      applyFilter(filterId, newState);
     });
     
     updateFilterButtons();
@@ -393,19 +392,25 @@ javascript:
           const subFilterKey = `${filterId}_${item.id}`;
           subFilterStatesBeforeGroupToggle[filterId][item.id] = filterStates[subFilterKey];
           filterStates[subFilterKey] = false;
-          applySubFilter(filterId, item.id, false);
         });
       }
       filterStates[filterId] = false;
       applyFilter(filterId, false);
     } else {
-      if (filterConfig && filterConfig.length > 1 && subFilterStatesBeforeGroupToggle[filterId]) {
-        filterConfig.forEach(item => {
-          const subFilterKey = `${filterId}_${item.id}`;
-          const wasActive = subFilterStatesBeforeGroupToggle[filterId][item.id];
-          filterStates[subFilterKey] = wasActive;
-          applySubFilter(filterId, item.id, wasActive);
-        });
+      if (filterConfig && filterConfig.length > 1) {
+        const saved = subFilterStatesBeforeGroupToggle[filterId];
+        const anyUserSelectionWhileOff = filterConfig.some(item => filterStates[`${filterId}_${item.id}`]);
+        if (!anyUserSelectionWhileOff) {
+          filterConfig.forEach(item => {
+            const subFilterKey = `${filterId}_${item.id}`;
+            if (saved && saved[item.id] !== undefined) {
+              filterStates[subFilterKey] = saved[item.id];
+            } else {
+              filterStates[subFilterKey] = true;
+            }
+          });
+        }
+        delete subFilterStatesBeforeGroupToggle[filterId];
       }
       filterStates[filterId] = true;
       applyFilter(filterId, true);
@@ -418,7 +423,6 @@ javascript:
     if (currentMode !== 'filters') return;
     const subFilterKey = `${groupId}_${subFilterId}`;
     filterStates[subFilterKey] = !filterStates[subFilterKey];
-    applySubFilter(groupId, subFilterId, filterStates[subFilterKey]);
     
     const filterConfig = currentStyle.metadata.filters[groupId];
     if (filterConfig && filterConfig.length > 1) {
@@ -426,10 +430,10 @@ javascript:
         const key = `${groupId}_${item.id}`;
         return filterStates[key];
       });
-      
       filterStates[groupId] = activeSubFilters.length > 0;
     }
     
+    applyFilter(groupId, !!filterStates[groupId]);
     updateFilterButtons();
   }
 
