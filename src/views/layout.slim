@@ -379,7 +379,7 @@ html
       |   border-bottom: none;
       | }
       | 
-      | .source-url, .font-name, .sprite-url, .endpoint-url, .endpoint-link {
+      | .source-url, .font-name, .sprite-url, .endpoint-url {
       |   color: #6897bb;
       |   font-family: 'Courier New', monospace;
       |   word-break: break-all;
@@ -399,7 +399,17 @@ html
       |   color: #6a9955;
       |   text-decoration: underline;
       |   font-size: 11px;
+      |   display: inline;
+      |   flex: 0 0 auto;
+      |   margin-left: 6px;
       |   margin-right: 8px;
+      | }
+      | 
+      | .endpoint-item {
+      |   justify-content: flex-start;
+      | }
+      | .endpoint-item .test-btn {
+      |   margin-left: auto;
       | }
       | 
 
