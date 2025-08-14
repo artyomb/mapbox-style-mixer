@@ -451,10 +451,8 @@ javascript:
     
     const filterConfig = currentStyle.metadata.filters[filterId];
     if (!filterConfig) return;
-    
-// ====== TEST SECOND LEVEL FILTERS ====== //
 
-    const hasMapboxFilters = filterConfig.some(filter => filter.filter);
+    const hasMapboxFilters = filterConfig.some(filter => filter.filter); // ====== TEST SECOND LEVEL FILTERS
     
     if (hasMapboxFilters) {
       applyLevel2Filter(filterId, isActive, filterConfig);
@@ -463,9 +461,8 @@ javascript:
     }
   }
 
-// ====== END TEST SECOND LEVEL FILTERS ====== //
 
-  function applyLevel1Filter(filterId, isActive, filterConfig) {
+  function applyLevel1Filter(filterId, isActive, filterConfig) { // ====== END TEST SECOND LEVEL FILTERS
     currentStyle.layers.forEach(layer => {
       if (layer.metadata?.filter_id) {
         const matchingFilter = filterConfig.find(filter => filter.id === layer.metadata.filter_id);
@@ -488,9 +485,7 @@ javascript:
     });
   }
 
-// ====== TEST SECOND LEVEL FILTERS ====== //
-
-  function applyLevel2Filter(filterId, isActive, filterConfig) {
+  function applyLevel2Filter(filterId, isActive, filterConfig) { // ====== TEST SECOND LEVEL FILTERS
     const subFiltersWithExpr = filterConfig.filter(f => !!f.filter);
     const subFiltersWithoutExpr = filterConfig.filter(f => !f.filter);
 
@@ -569,9 +564,7 @@ javascript:
         });
       });
     }
-  }
-
-// ====== END TEST SECOND LEVEL FILTERS ====== //
+  } // ====== END TEST SECOND LEVEL FILTERS ====== //
 
   function applySubFilter(groupId, subFilterId, isActive) {
     if (currentMode !== 'filters') return;
@@ -583,9 +576,7 @@ javascript:
     const subFilter = filterConfig.find(filter => filter.id === subFilterId);
     if (!subFilter) return;
 
-// ====== TEST SECOND LEVEL FILTERS ====== //
-
-    const hasMapboxFilters = filterConfig.some(filter => filter.filter);
+    const hasMapboxFilters = filterConfig.some(filter => filter.filter); // ====== TEST SECOND LEVEL FILTERS
     
     if (hasMapboxFilters) {
       applyLevel2Filter(groupId, filterStates[groupId], filterConfig);
@@ -600,10 +591,7 @@ javascript:
           }
         }
       });
-    }
-
-// ====== END TEST SECOND LEVEL FILTERS ====== //
-
+    } // ====== END TEST SECOND LEVEL FILTERS ====== //
   }
 
   function updateFilterButtons() {
