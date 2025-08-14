@@ -35,12 +35,12 @@ RSpec.describe SpriteMerger do
   end
 
   describe '#merge_sprites_for_mix' do
-    it 'returns nil when no sprites found' do
+    it 'returns false when no sprites found' do
       FileUtils.rm_rf('src/sprites/test_mix_weather_1')
       FileUtils.rm_rf('src/sprites/test_mix_location_2')
       
       result = merger.merge_sprites_for_mix('test_mix')
-      expect(result).to be_nil
+      expect(result).to be false
     end
 
     it 'finds sprite directories correctly' do
@@ -54,7 +54,7 @@ RSpec.describe SpriteMerger do
       FileUtils.mkdir_p('src/sprites/test_mix_empty_3')
       
       result = merger.merge_sprites_for_mix('test_mix')
-      expect(result).to be_nil  # Should return nil because ImageMagick will fail
+      expect(result).to be false 
     end
   end
 

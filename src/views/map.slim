@@ -132,7 +132,7 @@ javascript:
     if (currentStyle?.layers) {
       currentStyle.layers.forEach(layer => {
         if (map.getLayer(layer.id)) {
-          map.setLayoutProperty(layer.id, 'visibility', 'none');
+          map.setLayoutProperty(layer.id, 'visibility', 'visible');
         }
       });
     }

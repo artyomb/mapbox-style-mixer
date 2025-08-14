@@ -27,17 +27,17 @@ class SpriteMerger
     sprite_files = collect_sprite_files(mix_id)
     if sprite_files.empty?
       LOGGER.warn "No sprite directories found for #{mix_id}"
-      return nil
+      return false
     end
     
     success = merge_sprites(sprite_files, mix_id)
     
     if success
       LOGGER.info "Successfully merged #{sprite_files.length} sprites for #{mix_id}"
-      { png: File.join(@output_dir, "#{mix_id}_sprite.png"), json: File.join(@output_dir, "#{mix_id}_sprite.json") }
+      true
     else
       LOGGER.error "Failed to merge sprites for #{mix_id}"
-      nil
+      false
     end
   end
 

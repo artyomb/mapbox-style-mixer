@@ -44,9 +44,10 @@ class StyleMixer
     end
     
     require_relative 'sprite_merger'
-    SpriteMerger.new(@config).merge_sprites_for_mix(mix_id)
+    sprite_merger = SpriteMerger.new(@config)
+    sprite_result = sprite_merger.merge_sprites_for_mix(mix_id)
     
-    mixed_style['sprite'] = "/sprite/#{mix_id}_sprite"
+    mixed_style['sprite'] = sprite_result ? "/sprite/#{mix_id}_sprite" : nil
     mixed_style['glyphs'] = "/fonts/{fontstack}/{range}.pbf"
     
     FileUtils.mkdir_p(@mixed_dir)
@@ -112,17 +113,13 @@ class StyleMixer
       new_layer['source'] = "#{prefix}_#{layer['source']}" if layer['source']
       
       if layer.dig('layout', 'text-font')
-        new_layer['layout']['text-font'] = layer['layout']['text-font'].map { |font| "#{prefix}/#{font}" }
+        new_layer['layout']['text-font'] = process_text_font(layer['layout']['text-font'], prefix)
       end
       
       new_layer['metadata'] ||= {}
       
       if layer.dig('metadata', 'filter_id')
-        if layer['metadata']['filter_id'] == prefix
-          new_layer['metadata']['filter_id'] = prefix
-        else
-          new_layer['metadata']['filter_id'] = "#{prefix}_#{layer['metadata']['filter_id']}"
-        end
+        new_layer['metadata']['filter_id'] = "#{prefix}_#{layer['metadata']['filter_id']}"
       else
         new_layer['metadata']['filter_id'] = prefix
       end
@@ -145,7 +142,11 @@ class StyleMixer
         prefixed_filters = filters.map do |filter|
           filter.dup.tap do |new_filter|
             new_filter['id'] = "#{prefix}_#{filter['id']}" if filter['id']
-            new_filter['group_id'] = "#{prefix}_#{filter['group_id']}" if filter['group_id']
+            if filter['group_id']
+              new_filter['group_id'] = "#{prefix}_#{filter['group_id']}"
+            end
+            new_filter['icon'] = "#{prefix}_#{filter['icon']}" if filter['icon']
+            new_filter['type'] = "#{prefix}_#{filter['type']}" if filter['type']
           end
         end
         
@@ -189,6 +190,28 @@ class StyleMixer
     %w[feature_inspector feature_geometry find_in_point popup_template hover_template maputnik:renderer].each do |field|
       mixed_style['metadata'][field] = source_style['metadata'][field] if source_style['metadata'][field]
     end
+  end
+
+  def process_text_font(font_config, prefix)
+    case font_config
+    when Array then font_config.map { |font| "#{prefix}/#{font}" }
+    when Hash then process_dynamic_font(font_config, prefix)
+    else font_config
+    end
+  end
+
+  def process_dynamic_font(font_config, prefix)
+    deep_dup(font_config).tap do |config|
+      config['stops']&.map! { |stop| process_stop(stop, prefix) }
+    end
+  end
+
+  def process_stop(stop, prefix)
+    return stop unless stop.is_a?(Array) && stop[1]
+    
+    fonts = stop[1]
+    new_fonts = fonts.is_a?(Array) ? fonts.map { |f| "#{prefix}/#{f}" } : ["#{prefix}/#{fonts}"]
+    [stop[0], new_fonts]
   end
 
   def deep_dup(obj)

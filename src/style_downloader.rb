@@ -85,25 +85,64 @@ class StyleDownloader
   end
 
   def extract_sprites(style_json, mix_id, style_id, index)
-    return [] unless style_json['sprite']
-    [{ url: style_json['sprite'], name: "#{mix_id}_#{style_id}_#{index + 1}" }]
+    sprite_url = extract_sprite_url(style_json)
+    return [] unless sprite_url && valid_url?(sprite_url)
+    [{ url: sprite_url, name: "#{mix_id}_#{style_id}_#{index + 1}" }]
+  end
+
+  def extract_sprite_url(style_json)
+    return style_json['sprite'] if style_json['sprite']&.is_a?(String) && !style_json['sprite'].empty?
+    return style_json['sprites']&.first if style_json['sprites']&.is_a?(Array) && style_json['sprites'].any?
+    nil
+  end
+
+  def valid_url?(url)
+    return false unless url.is_a?(String) && !url.empty?
+    return false if url == 'link' || url == 'null' || url.include?('://') == false
+    true
   end
 
   def extract_fontstacks(style_json, style_id)
     return [] unless style_json['glyphs']
     
-    fontstacks = style_json['layers'].map { |l| l.dig('layout', 'text-font') }.compact.flatten.uniq
-    fontstacks.map { |f| { fontstack: f, style_id: style_id } }
+    style_json['layers']
+      .map { |l| extract_fonts(l.dig('layout', 'text-font')) }
+      .flatten.compact.uniq
+      .map { |f| { fontstack: f, style_id: style_id } }
+  end
+
+  def extract_fonts(font_config)
+    return [] unless font_config
+    
+    case font_config
+    when Array then font_config
+    when Hash then extract_from_stops(font_config['stops'])
+    else []
+    end
+  end
+
+  def extract_from_stops(stops)
+    return [] unless stops&.is_a?(Array)
+    
+    stops.flat_map { |stop| stop[1] if stop.is_a?(Array) && stop[1] }
+         .compact.map { |fonts| fonts.is_a?(Array) ? fonts : [fonts] }
+         .flatten.uniq
   end
 
   def download_sprites(all_sprites)
     all_sprites.each do |sprite_info|
+      next unless sprite_info[:url] && valid_url?(sprite_info[:url])
+      
       dir = File.join(@sprites_dir, sprite_info[:name])
       FileUtils.mkdir_p(dir)
       
       %w[json png].each do |ext|
-        r = Faraday.get("#{sprite_info[:url]}.#{ext}")
-        File.write(File.join(dir, "sprite.#{ext}"), r.body) if r.success?
+        begin
+          r = Faraday.get("#{sprite_info[:url]}.#{ext}")
+          File.write(File.join(dir, "sprite.#{ext}"), r.body) if r.success?
+        rescue => e
+          LOGGER.warn "Failed to download sprite #{sprite_info[:url]}.#{ext}: #{e.message}"
+        end
       end
     end
   end
