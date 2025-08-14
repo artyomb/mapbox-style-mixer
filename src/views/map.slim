@@ -133,6 +133,7 @@ javascript:
       currentStyle.layers.forEach(layer => {
         if (map.getLayer(layer.id)) {
           map.setLayoutProperty(layer.id, 'visibility', 'visible');
+          map.setFilter(layer.id, null); // TEST SECOND LEVEL FILTERS
         }
       });
     }
@@ -451,6 +452,20 @@ javascript:
     const filterConfig = currentStyle.metadata.filters[filterId];
     if (!filterConfig) return;
     
+// ====== TEST SECOND LEVEL FILTERS ====== //
+
+    const hasMapboxFilters = filterConfig.some(filter => filter.filter);
+    
+    if (hasMapboxFilters) {
+      applyLevel2Filter(filterId, isActive, filterConfig);
+    } else {
+      applyLevel1Filter(filterId, isActive, filterConfig);
+    }
+  }
+
+// ====== END TEST SECOND LEVEL FILTERS ====== //
+
+  function applyLevel1Filter(filterId, isActive, filterConfig) {
     currentStyle.layers.forEach(layer => {
       if (layer.metadata?.filter_id) {
         const matchingFilter = filterConfig.find(filter => filter.id === layer.metadata.filter_id);
@@ -473,6 +488,91 @@ javascript:
     });
   }
 
+// ====== TEST SECOND LEVEL FILTERS ====== //
+
+  function applyLevel2Filter(filterId, isActive, filterConfig) {
+    const subFiltersWithExpr = filterConfig.filter(f => !!f.filter);
+    const subFiltersWithoutExpr = filterConfig.filter(f => !f.filter);
+
+    const generalLayers = currentStyle.layers.filter(layer => layer.metadata?.filter_id === filterId);
+
+    const childLayersBySubId = {};
+    filterConfig.forEach(f => {
+      childLayersBySubId[f.id] = currentStyle.layers
+        .filter(layer => layer.metadata?.filter_id === f.id)
+        .map(l => l.id);
+    });
+
+    const hasGeneralLayers = generalLayers.length > 0 && subFiltersWithExpr.length > 0;
+    const hasChildLayers = Object.values(childLayersBySubId).some(arr => (arr && arr.length > 0));
+
+    if (!isActive) {
+      if (hasGeneralLayers) {
+        generalLayers.forEach(layer => {
+          if (map.getLayer(layer.id)) {
+            map.setLayoutProperty(layer.id, 'visibility', 'none');
+            map.setFilter(layer.id, null);
+          }
+        });
+      }
+      if (hasChildLayers) {
+        Object.values(childLayersBySubId).forEach(ids => {
+          ids.forEach(id => {
+            if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'none');
+          });
+        });
+      }
+      return;
+    }
+
+    if (hasGeneralLayers) {
+      const activeWithExpr = subFiltersWithExpr.filter(f => {
+        const key = `${filterId}_${f.id}`;
+        return filterStates[key] !== false;
+      });
+
+      if (activeWithExpr.length === 0) {
+        generalLayers.forEach(layer => {
+          if (map.getLayer(layer.id)) {
+            map.setLayoutProperty(layer.id, 'visibility', 'none');
+            map.setFilter(layer.id, null);
+          }
+        });
+      } else if (activeWithExpr.length === 1) {
+        const expr = activeWithExpr[0].filter;
+        generalLayers.forEach(layer => {
+          if (map.getLayer(layer.id)) {
+            map.setLayoutProperty(layer.id, 'visibility', 'visible');
+            map.setFilter(layer.id, expr);
+          }
+        });
+      } else {
+        const exprs = activeWithExpr.map(f => f.filter);
+        const combined = ['any', ...exprs];
+        generalLayers.forEach(layer => {
+          if (map.getLayer(layer.id)) {
+            map.setLayoutProperty(layer.id, 'visibility', 'visible');
+            map.setFilter(layer.id, combined);
+          }
+        });
+      }
+    }
+
+    if (hasChildLayers) {
+      filterConfig.forEach(sf => {
+        const ids = childLayersBySubId[sf.id] || [];
+        if (!ids.length) return;
+        const subKey = `${filterId}_${sf.id}`;
+        const on = (filterStates[subKey] !== false) && isActive;
+        ids.forEach(id => {
+          if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
+        });
+      });
+    }
+  }
+
+// ====== END TEST SECOND LEVEL FILTERS ====== //
+
   function applySubFilter(groupId, subFilterId, isActive) {
     if (currentMode !== 'filters') return;
     if (!currentStyle?.metadata?.filters) return;
@@ -482,17 +582,28 @@ javascript:
     
     const subFilter = filterConfig.find(filter => filter.id === subFilterId);
     if (!subFilter) return;
+
+// ====== TEST SECOND LEVEL FILTERS ====== //
+
+    const hasMapboxFilters = filterConfig.some(filter => filter.filter);
     
-    const groupActive = filterStates[groupId];
-    
-    currentStyle.layers.forEach(layer => {
-      if (layer.metadata?.filter_id && layer.metadata.filter_id === subFilterId) {
-        if (map.getLayer(layer.id)) {
-          const visibility = (groupActive && isActive) ? 'visible' : 'none';
-          map.setLayoutProperty(layer.id, 'visibility', visibility);
+    if (hasMapboxFilters) {
+      applyLevel2Filter(groupId, filterStates[groupId], filterConfig);
+    } else {
+      const groupActive = filterStates[groupId];
+      
+      currentStyle.layers.forEach(layer => {
+        if (layer.metadata?.filter_id && layer.metadata.filter_id === subFilterId) {
+          if (map.getLayer(layer.id)) {
+            const visibility = (groupActive && isActive) ? 'visible' : 'none';
+            map.setLayoutProperty(layer.id, 'visibility', visibility);
+          }
         }
-      }
-    });
+      });
+    }
+
+// ====== END TEST SECOND LEVEL FILTERS ====== //
+
   }
 
   function updateFilterButtons() {
