@@ -133,7 +133,6 @@ javascript:
       currentStyle.layers.forEach(layer => {
         if (map.getLayer(layer.id)) {
           map.setLayoutProperty(layer.id, 'visibility', 'visible');
-          map.setFilter(layer.id, null); // TEST SECOND LEVEL FILTERS
         }
       });
     }
@@ -452,7 +451,7 @@ javascript:
     const filterConfig = currentStyle.metadata.filters[filterId];
     if (!filterConfig) return;
 
-    const hasMapboxFilters = filterConfig.some(filter => filter.filter); // ====== TEST SECOND LEVEL FILTERS
+    const hasMapboxFilters = filterConfig.some(filter => filter.filter);
     
     if (hasMapboxFilters) {
       applyLevel2Filter(filterId, isActive, filterConfig);
@@ -462,7 +461,7 @@ javascript:
   }
 
 
-  function applyLevel1Filter(filterId, isActive, filterConfig) { // ====== END TEST SECOND LEVEL FILTERS
+  function applyLevel1Filter(filterId, isActive, filterConfig) {
     currentStyle.layers.forEach(layer => {
       if (layer.metadata?.filter_id) {
         const matchingFilter = filterConfig.find(filter => filter.id === layer.metadata.filter_id);
@@ -480,12 +479,20 @@ javascript:
               map.setLayoutProperty(layer.id, 'visibility', visibility);
             }
           }
+        } else {
+          if (layer.metadata.filter_id === filterId) {
+            if (map.getLayer(layer.id)) {
+              const visibility = isActive ? 'visible' : 'none';
+              map.setLayoutProperty(layer.id, 'visibility', visibility);
+            }
+          }
         }
       }
     });
   }
 
-  function applyLevel2Filter(filterId, isActive, filterConfig) { // ====== TEST SECOND LEVEL FILTERS
+
+  function applyLevel2Filter(filterId, isActive, filterConfig) {
     const subFiltersWithExpr = filterConfig.filter(f => !!f.filter);
     const subFiltersWithoutExpr = filterConfig.filter(f => !f.filter);
 
@@ -564,7 +571,7 @@ javascript:
         });
       });
     }
-  } // ====== END TEST SECOND LEVEL FILTERS ====== //
+  }
 
   function applySubFilter(groupId, subFilterId, isActive) {
     if (currentMode !== 'filters') return;
@@ -576,7 +583,7 @@ javascript:
     const subFilter = filterConfig.find(filter => filter.id === subFilterId);
     if (!subFilter) return;
 
-    const hasMapboxFilters = filterConfig.some(filter => filter.filter); // ====== TEST SECOND LEVEL FILTERS
+    const hasMapboxFilters = filterConfig.some(filter => filter.filter);
     
     if (hasMapboxFilters) {
       applyLevel2Filter(groupId, filterStates[groupId], filterConfig);
@@ -591,7 +598,7 @@ javascript:
           }
         }
       });
-    } // ====== END TEST SECOND LEVEL FILTERS ====== //
+    }
   }
 
   function updateFilterButtons() {
