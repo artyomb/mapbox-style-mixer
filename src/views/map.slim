@@ -57,7 +57,7 @@ ruby:
 
 javascript:
   const mapEl = document.getElementById('map');
-  const style_url = (mapEl && mapEl.dataset) ? (mapEl.dataset.styleUrl || null) : null;
+  const style_url = mapEl?.dataset?.styleUrl || null;
   let showBasemap = true, currentMode = 'filters';
   let hoverMode = 'click';
   let layerStates = {}, filterStates = {};
@@ -68,11 +68,9 @@ javascript:
   const subFilterStatesBeforeGroupToggle = {};
   const layerIdToDomId = {};
 
-  function toDomId(prefix, id) {
-    return `${prefix}-${String(id).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-  }
+  const toDomId = (prefix, id) => `${prefix}-${String(id).replace(/[^a-zA-Z0-9_-]/g, '_')}`;
   
-  function getLocalizedFilterName(locale, filterId) {
+  const getLocalizedFilterName = (locale, filterId) => {
     if (!locale) return filterId;
     const languagePriority = ['en-US', 'en', 'ru'];
     
@@ -85,7 +83,7 @@ javascript:
     }
     
     return filterId;
-  }
+  };
   
   const showLoading = () => document.getElementById('loading-indicator').style.display = 'block';
   const hideLoading = () => document.getElementById('loading-indicator').style.display = 'none';
@@ -113,49 +111,46 @@ javascript:
     document.querySelector('.progress-fill').style.width = `${progress}%`;
   };
   
-  function switchMode(arg1, arg2) {
+  const switchMode = (arg1, arg2) => {
     const isStringArg = typeof arg1 === 'string';
     const mode = isStringArg ? arg1 : arg2;
     const target = isStringArg ? null : (arg1?.currentTarget || arg1);
     currentMode = mode;
+    
     document.querySelectorAll('.mode-button').forEach(btn => btn.classList.remove('active'));
-    if (target) target.classList.add('active');
-    else document.getElementById(`mode-${mode}`)?.classList.add('active');
+    (target || document.getElementById(`mode-${mode}`))?.classList.add('active');
     
     document.getElementById('filters-panel').classList.toggle('active', mode === 'filters');
     document.getElementById('layers-panel').classList.toggle('active', mode === 'layers');
     
     mode === 'filters' ? applyFilterMode() : applyLayerMode();
-  }
+  };
   
-  function applyFilterMode() {
-    if (currentStyle?.layers) {
-      currentStyle.layers.forEach(layer => {
-        if (map.getLayer(layer.id)) {
-          map.setLayoutProperty(layer.id, 'visibility', 'visible');
-        }
-      });
-    }
+  const applyFilterMode = () => {
+    currentStyle?.layers?.forEach(layer => {
+      if (map.getLayer(layer.id)) {
+        map.setLayoutProperty(layer.id, 'visibility', 'visible');
+      }
+    });
     
-    if (currentStyle?.metadata?.filters) {
-      Object.keys(currentStyle.metadata.filters).forEach(filterId => {
-        const isActive = filterStates[filterId] || false;
-        applyFilter(filterId, isActive);
-      });
-    }
-  }
+    currentStyle?.metadata?.filters && Object.keys(currentStyle.metadata.filters).forEach(filterId => {
+      applyFilter(filterId, filterStates[filterId] || false);
+    });
+  };
   
-  function applyLayerMode() {
+  const applyLayerMode = () => {
     Object.keys(filterStates).forEach(filterId => filterStates[filterId] = true);
     updateFilterButtons();
     Object.keys(layerStates).forEach(layerId => {
-      const visibility = layerStates[layerId] ? 'visible' : 'none';
-      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visibility);
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, 'visibility', layerStates[layerId] ? 'visible' : 'none');
+      }
     });
-  }
+  };
   
   const checkStyleResources = (style) => {
-    totalResources = 0; resourcesLoaded = 0;
+    totalResources = 0; 
+    resourcesLoaded = 0;
     const promises = [];
     
     if (style.sprite) {
@@ -180,41 +175,60 @@ javascript:
     }
   };
   
-  function initializeMap() {
+  const createMap = (container, style) => new maplibregl.Map({
+    container, style,
+    center: [35.15, 47.41], zoom: 2, attributionControl: false, validateStyle: false
+  });
+  
+  const syncMaps = (map, map_base) => {
+    map.on('move', () => {
+      if (!map_base || map_base._isDestroyed) return;
+      
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      const bearing = map.getBearing();
+      const pitch = map.getPitch();
+      map_base.jumpTo({ center, zoom, bearing, pitch });
+      map_base.triggerRepaint(); 
+      map_base.resize();
+    });
+  };
+  
+  const popupFeature = (features, e, popup) => {
+    const tt = (tooltip, feat) => tooltip?.replace(/\{([^}]+)\}/g, (match, prop) => {
+      let value = feat;
+      for (const p of prop.split('.')) { value = value?.[p]; }
+      return typeof value === 'object' ? JSON.stringify(value, null, 2) : (value || '');
+    });
+
+    const tooltips = features.map((feat) => 
+      tt(feat.layer.metadata?.tooltip, feat) ||
+      tt(`<pre>"id": {id},\n"source": {source},\n"source-layer": {sourceLayer},\n"properties": {properties}</pre>`, feat)
+    );
+    popup.setLngLat(e.lngLat).setHTML(tooltips.join('<br>')).addTo(map);
+  };
+  
+  const initializeMap = () => {
     showLoading();
     
-    map_base = new maplibregl.Map({
-      container: 'map_base', style: 'https://demotiles.maplibre.org/style.json',
-      center: [35.15, 47.41], zoom: 2, attributionControl: false,
-      interactive: false, trackResize: false, validateStyle: false
-    });
-    map_base.once('idle', () => { try { map_base.setProjection({ type: 'globe' }); } catch (_) {} });
-
-    map = new maplibregl.Map({
-      container: 'map', style: style_url || 'https://demotiles.maplibre.org/style.json',
-      center: [35.15, 47.41], zoom: 2, attributionControl: false, validateStyle: false
+    map_base = createMap('map_base', 'https://demotiles.maplibre.org/style.json');
+    map_base.once('idle', () => { 
+      try { map_base.setProjection({ type: 'globe' }); } catch (_) {} 
     });
 
+    map = createMap('map', style_url || 'https://demotiles.maplibre.org/style.json');
     map.addControl(new maplibregl.NavigationControl());
     map.on('error', (e) => { console.error('[MapLibre ERROR]', e?.error || e); });
 
     if (style_url) {
-      function syncMaps(map, map_base) {
-        map.on('move', () => {
-          const center = map.getCenter(), zoom = map.getZoom();
-          const bearing = map.getBearing(), pitch = map.getPitch();
-          map_base.jumpTo({center, zoom, bearing, pitch});
-          map_base.triggerRepaint(); map_base.resize();
-        });
-      }
       syncMaps(map, map_base);
       map.on('projectiontransition', (e) => {
         const applyProjection = () => {
           try { map_base.setProjection({ type: e.newProjection }); } catch (_) {}
-          map_base.triggerRepaint(); map_base.resize();
+          map_base.triggerRepaint(); 
+          map_base.resize();
         };
-        if (map_base.isStyleLoaded && map_base.isStyleLoaded()) applyProjection();
-        else map_base.once('idle', applyProjection);
+        map_base.isStyleLoaded && map_base.isStyleLoaded() ? applyProjection() : map_base.once('idle', applyProjection);
       });
     }
 
@@ -229,7 +243,11 @@ javascript:
         }
       };
 
-      try { currentStyle = map.getStyle(); if (currentStyle) { checkStyleResources(currentStyle); } } catch (_) {}
+      try { 
+        currentStyle = map.getStyle(); 
+        currentStyle && checkStyleResources(currentStyle); 
+      } catch (_) {}
+      
       map.once('idle', onStyleReady);
       
       const popup = new maplibregl.Popup({closeButton: false, closeOnClick: false});
@@ -237,24 +255,10 @@ javascript:
       map.on('click', function (e) {
         const features = this.queryRenderedFeatures(e.point);
         if (features.length > 0) {
-          hoverMode === 'click' && popupFeature(features, e);
+          hoverMode === 'click' && popupFeature(features, e, popup);
           console.log('Clicked feature:', features[0]);
         }
       });
-
-      function popupFeature(features, e) {
-        let tt = (tooltip, feat) => tooltip?.replace(/\{([^}]+)\}/g, (match, prop) => {
-            let value = feat;
-            for (const p of prop.split('.')) { value = value?.[p]; }
-            return typeof value === 'object' ? JSON.stringify(value, null, 2) : (value || '');
-        });
-
-        let tooltips = features.map((feat) => {
-          return tt(feat.layer.metadata?.tooltip, feat) ||
-          tt(`<pre>"id": {id},\n"source": {source},\n"source-layer": {sourceLayer},\n"properties": {properties}</pre>`, feat);
-        });
-        popup.setLngLat(e.lngLat).setHTML(tooltips.join('<br>')).addTo(map);
-      }
 
       let timeout, point;
       map.on('mousemove', (e) => {
@@ -269,20 +273,16 @@ javascript:
         const hasFeatures = features.length > 0;
         
         map.getCanvas().style.cursor = hasFeatures ? 'crosshair' : '';
-        if (hasFeatures) {
-          timeout = setTimeout(() => popupFeature(features, e), 100);
-        } else {
-          popup.remove();
-        }
+        hasFeatures ? timeout = setTimeout(() => popupFeature(features, e, popup), 100) : popup.remove();
         
-        if (point && !point.equals(e.point)) popup.remove();
+        point && !point.equals(e.point) && popup.remove();
         point = e.point.clone();
       });
       
       map.on('sourcedata', (e) => {
         if (e.sourceId && e.isSourceLoaded) {
           tilesLoaded++;
-          if (tilesTotal === 0) tilesTotal = Object.keys(map.getStyle().sources).length;
+          tilesTotal === 0 && (tilesTotal = Object.keys(map.getStyle().sources).length);
           updateLoadingProgress();
         }
       });
@@ -302,61 +302,64 @@ javascript:
       requestAnimationFrame(countFrame);
       updateHoverModeButton();
     });
-  }
+  };
 
-  function toggleBasemap() {
+  const toggleBasemap = () => {
     showBasemap = !showBasemap;
     document.getElementById('map_base').style.display = showBasemap ? 'block' : 'none';
-  }
+  };
 
-  function toggleHoverMode() {
+  const toggleHoverMode = () => {
     hoverMode = hoverMode === 'hover' ? 'click' : 'hover';
     updateHoverModeButton();
-  }
+  };
 
-  function updateHoverModeButton() {
+  const updateHoverModeButton = () => {
     const btn = document.getElementById('hover-mode-btn');
     if (!btn) return;
     
     const isHoverMode = hoverMode === 'hover';
     btn.textContent = isHoverMode ? 'Click Mode' : 'Hover Mode';
     btn.className = `control-button ${isHoverMode ? 'active' : ''}`;
-  }
+  };
 
-  function toggleAllLayers() {
+  const toggleAllLayers = () => {
     if (currentMode !== 'layers') return;
     const allVisible = Object.values(layerStates).every(state => state);
     const newState = !allVisible;
     
     Object.keys(layerStates).forEach(layerId => {
       layerStates[layerId] = newState;
-      const visibility = newState ? 'visible' : 'none';
-      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visibility);
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, 'visibility', newState ? 'visible' : 'none');
+      }
     });
     
     updateLayerButtons();
-  }
+  };
 
-  function toggleLayer(layerId) {
+  const toggleLayer = (layerId) => {
     if (currentMode !== 'layers') return;
     layerStates[layerId] = !layerStates[layerId];
-    const visibility = layerStates[layerId] ? 'visible' : 'none';
     
-    if (map.getLayer(layerId)) map.setLayoutProperty(layerId, 'visibility', visibility);
+    if (map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, 'visibility', layerStates[layerId] ? 'visible' : 'none');
+    }
     updateLayerButtons();
-  }
+  };
 
-  function updateLayerButtons() {
+  const updateLayerButtons = () => {
     Object.keys(layerStates).forEach(layerId => {
       const btnId = layerIdToDomId[layerId] || toDomId('layer', layerId);
       const button = document.getElementById(btnId);
-      if (button) button.className = `control-button ${layerStates[layerId] ? 'active' : 'inactive'}`;
+      if (button) {
+        button.className = `control-button ${layerStates[layerId] ? 'active' : 'inactive'}`;
+      }
     });
-  }
+  };
 
-  function toggleAllFilters() {
-    if (currentMode !== 'filters') return;
-    if (!currentStyle?.metadata?.filters) return;
+  const toggleAllFilters = () => {
+    if (currentMode !== 'filters' || !currentStyle?.metadata?.filters) return;
     
     const allActive = Object.values(filterStates).every(state => state);
     const newState = !allActive;
@@ -365,10 +368,9 @@ javascript:
     Object.keys(currentStyle.metadata.filters).forEach(filterId => {
       const filterConfig = currentStyle.metadata.filters[filterId];
       
-      if (filterConfig && filterConfig.length > 1) {
+      if (filterConfig?.length > 1) {
         filterConfig.forEach(item => {
-          const subFilterKey = `${filterId}_${item.id}`;
-          filterStates[subFilterKey] = newState;
+          filterStates[`${filterId}_${item.id}`] = newState;
         });
       }
 
@@ -377,16 +379,16 @@ javascript:
     });
     
     updateFilterButtons();
-  }
+  };
 
-  function toggleFilterGroup(filterId) {
+  const toggleFilterGroup = (filterId) => {
     if (currentMode !== 'filters') return;
     
     const filterConfig = currentStyle.metadata.filters[filterId];
     const isCurrentlyActive = filterStates[filterId];
     
     if (isCurrentlyActive) {
-      if (filterConfig && filterConfig.length > 1) {
+      if (filterConfig?.length > 1) {
         subFilterStatesBeforeGroupToggle[filterId] = {};
         filterConfig.forEach(item => {
           const subFilterKey = `${filterId}_${item.id}`;
@@ -397,17 +399,13 @@ javascript:
       filterStates[filterId] = false;
       applyFilter(filterId, false);
     } else {
-      if (filterConfig && filterConfig.length > 1) {
+      if (filterConfig?.length > 1) {
         const saved = subFilterStatesBeforeGroupToggle[filterId];
         const anyUserSelectionWhileOff = filterConfig.some(item => filterStates[`${filterId}_${item.id}`]);
         if (!anyUserSelectionWhileOff) {
           filterConfig.forEach(item => {
             const subFilterKey = `${filterId}_${item.id}`;
-            if (saved && saved[item.id] !== undefined) {
-              filterStates[subFilterKey] = saved[item.id];
-            } else {
-              filterStates[subFilterKey] = true;
-            }
+            filterStates[subFilterKey] = saved?.[item.id] ?? true;
           });
         }
         delete subFilterStatesBeforeGroupToggle[filterId];
@@ -417,88 +415,67 @@ javascript:
     }
     
     updateFilterButtons();
-  }
+  };
 
-  function toggleSubFilter(groupId, subFilterId) {
+  const toggleSubFilter = (groupId, subFilterId) => {
     if (currentMode !== 'filters') return;
     const subFilterKey = `${groupId}_${subFilterId}`;
     filterStates[subFilterKey] = !filterStates[subFilterKey];
     
     const filterConfig = currentStyle.metadata.filters[groupId];
-    if (filterConfig && filterConfig.length > 1) {
-      const activeSubFilters = filterConfig.filter(item => {
-        const key = `${groupId}_${item.id}`;
-        return filterStates[key];
-      });
+    if (filterConfig?.length > 1) {
+      const activeSubFilters = filterConfig.filter(item => filterStates[`${groupId}_${item.id}`]);
       filterStates[groupId] = activeSubFilters.length > 0;
     }
     
     applyFilter(groupId, !!filterStates[groupId]);
     updateFilterButtons();
-  }
+  };
 
-  function toggleFilter(filterId) {
+  const toggleFilter = (filterId) => {
     if (currentMode !== 'filters') return;
     filterStates[filterId] = !filterStates[filterId];
     applyFilter(filterId, filterStates[filterId]);
     updateFilterButtons();
-  }
+  };
 
-  function applyFilter(filterId, isActive) {
-    if (currentMode !== 'filters') return;
-    if (!currentStyle?.metadata?.filters) return;
+  const applyFilter = (filterId, isActive) => {
+    if (currentMode !== 'filters' || !currentStyle?.metadata?.filters) return;
     
     const filterConfig = currentStyle.metadata.filters[filterId];
     if (!filterConfig) return;
 
     const hasMapboxFilters = filterConfig.some(filter => filter.filter);
-    
-    if (hasMapboxFilters) {
-      applyLevel2Filter(filterId, isActive, filterConfig);
-    } else {
-      applyLevel1Filter(filterId, isActive, filterConfig);
-    }
-  }
+    hasMapboxFilters ? applyLevel2Filter(filterId, isActive, filterConfig) : applyLevel1Filter(filterId, isActive, filterConfig);
+  };
 
-
-  function applyLevel1Filter(filterId, isActive, filterConfig) {
+  const applyLevel1Filter = (filterId, isActive, filterConfig) => {
     currentStyle.layers.forEach(layer => {
-      if (layer.metadata?.filter_id) {
-        const matchingFilter = filterConfig.find(filter => filter.id === layer.metadata.filter_id);
-        if (matchingFilter) {
-          if (filterConfig.length > 1) {
-            const subFilterKey = `${filterId}_${layer.metadata.filter_id}`;
-            const subFilterActive = filterStates[subFilterKey];
-            const visibility = (isActive && subFilterActive) ? 'visible' : 'none';
-            if (map.getLayer(layer.id)) {
-              map.setLayoutProperty(layer.id, 'visibility', visibility);
-            }
-          } else {
-            if (map.getLayer(layer.id)) {
-              const visibility = isActive ? 'visible' : 'none';
-              map.setLayoutProperty(layer.id, 'visibility', visibility);
-            }
-          }
+      if (!layer.metadata?.filter_id) return;
+      
+      const matchingFilter = filterConfig.find(filter => filter.id === layer.metadata.filter_id);
+      if (matchingFilter) {
+        if (filterConfig.length > 1) {
+          const subFilterKey = `${filterId}_${layer.metadata.filter_id}`;
+          const subFilterActive = filterStates[subFilterKey];
+          const visibility = (isActive && subFilterActive) ? 'visible' : 'none';
+          map.getLayer(layer.id) && map.setLayoutProperty(layer.id, 'visibility', visibility);
         } else {
-          if (layer.metadata.filter_id === filterId) {
-            if (map.getLayer(layer.id)) {
-              const visibility = isActive ? 'visible' : 'none';
-              map.setLayoutProperty(layer.id, 'visibility', visibility);
-            }
-          }
+          map.getLayer(layer.id) && map.setLayoutProperty(layer.id, 'visibility', isActive ? 'visible' : 'none');
         }
+      } else if (layer.metadata.filter_id === filterId) {
+        map.getLayer(layer.id) && map.setLayoutProperty(layer.id, 'visibility', isActive ? 'visible' : 'none');
       }
     });
-  }
+  };
 
-
-  function applyLevel2Filter(filterId, isActive, filterConfig) {
+  const applyLevel2Filter = (filterId, isActive, filterConfig) => {
     const subFiltersWithExpr = filterConfig.filter(f => !!f.filter);
     const subFiltersWithoutExpr = filterConfig.filter(f => !f.filter);
 
     const generalLayers = currentStyle.layers.filter(layer => layer.metadata?.filter_id === filterId);
-
     const childLayersBySubId = {};
+    
     filterConfig.forEach(f => {
       childLayersBySubId[f.id] = currentStyle.layers
         .filter(layer => layer.metadata?.filter_id === f.id)
@@ -506,7 +483,7 @@ javascript:
     });
 
     const hasGeneralLayers = generalLayers.length > 0 && subFiltersWithExpr.length > 0;
-    const hasChildLayers = Object.values(childLayersBySubId).some(arr => (arr && arr.length > 0));
+    const hasChildLayers = Object.values(childLayersBySubId).some(arr => arr?.length > 0);
 
     if (!isActive) {
       if (hasGeneralLayers) {
@@ -519,19 +496,14 @@ javascript:
       }
       if (hasChildLayers) {
         Object.values(childLayersBySubId).forEach(ids => {
-          ids.forEach(id => {
-            if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', 'none');
-          });
+          ids.forEach(id => map.getLayer(id) && map.setLayoutProperty(id, 'visibility', 'none'));
         });
       }
       return;
     }
 
     if (hasGeneralLayers) {
-      const activeWithExpr = subFiltersWithExpr.filter(f => {
-        const key = `${filterId}_${f.id}`;
-        return filterStates[key] !== false;
-      });
+      const activeWithExpr = subFiltersWithExpr.filter(f => filterStates[`${filterId}_${f.id}`] !== false);
 
       if (activeWithExpr.length === 0) {
         generalLayers.forEach(layer => {
@@ -566,42 +538,12 @@ javascript:
         if (!ids.length) return;
         const subKey = `${filterId}_${sf.id}`;
         const on = (filterStates[subKey] !== false) && isActive;
-        ids.forEach(id => {
-          if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
-        });
+        ids.forEach(id => map.getLayer(id) && map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'));
       });
     }
-  }
+  };
 
-  function applySubFilter(groupId, subFilterId, isActive) {
-    if (currentMode !== 'filters') return;
-    if (!currentStyle?.metadata?.filters) return;
-    
-    const filterConfig = currentStyle.metadata.filters[groupId];
-    if (!filterConfig) return;
-    
-    const subFilter = filterConfig.find(filter => filter.id === subFilterId);
-    if (!subFilter) return;
-
-    const hasMapboxFilters = filterConfig.some(filter => filter.filter);
-    
-    if (hasMapboxFilters) {
-      applyLevel2Filter(groupId, filterStates[groupId], filterConfig);
-    } else {
-      const groupActive = filterStates[groupId];
-      
-      currentStyle.layers.forEach(layer => {
-        if (layer.metadata?.filter_id && layer.metadata.filter_id === subFilterId) {
-          if (map.getLayer(layer.id)) {
-            const visibility = (groupActive && isActive) ? 'visible' : 'none';
-            map.setLayoutProperty(layer.id, 'visibility', visibility);
-          }
-        }
-      });
-    }
-  }
-
-  function updateFilterButtons() {
+  const updateFilterButtons = () => {
     Object.keys(filterStates).forEach(filterId => {
       const groupButton = document.getElementById(`filter-${filterId}`);
       if (groupButton) {
@@ -610,107 +552,99 @@ javascript:
       
       const subButton = document.getElementById(`filter-sub-${filterId}`);
       if (subButton) {
-        const subButtons = subButton.querySelectorAll('.filter-sub-button');
-        subButtons.forEach(btn => {
+        subButton.querySelectorAll('.filter-sub-button').forEach(btn => {
           const subFilterId = btn.id.replace(`filter-sub-${filterId}-`, '');
           const subFilterKey = `${filterId}_${subFilterId}`;
           btn.className = `control-button ${filterStates[subFilterKey] ? 'active' : 'inactive'} filter-sub-button`;
         });
       }
     });
-  }
+  };
 
-  function createLayerButtons() {
-    if (!currentStyle) return;
+  const createLayerButtons = () => {
+    if (!currentStyle?.layers) return;
     
     const layerButtonsContainer = document.getElementById('layer-buttons');
-    
-    if (currentStyle.layers) {
-      currentStyle.layers.forEach(layer => {
-        const button = document.createElement('button');
-        const buttonId = toDomId('layer', layer.id);
-        button.id = buttonId;
-        button.className = 'control-button active';
-        button.textContent = layer.id;
-        button.onclick = () => toggleLayer(layer.id);
-        layerButtonsContainer.appendChild(button);
-        layerStates[layer.id] = true;
-        layerIdToDomId[layer.id] = buttonId;
-      });
-    }
-  }
+    currentStyle.layers.forEach(layer => {
+      const button = document.createElement('button');
+      const buttonId = toDomId('layer', layer.id);
+      button.id = buttonId;
+      button.className = 'control-button active';
+      button.textContent = layer.id;
+      button.onclick = () => toggleLayer(layer.id);
+      layerButtonsContainer.appendChild(button);
+      layerStates[layer.id] = true;
+      layerIdToDomId[layer.id] = buttonId;
+    });
+  };
 
-  function createFilterButtons() {
-    if (!currentStyle) return;
+  const createFilterButtons = () => {
+    if (!currentStyle?.metadata?.filters) return;
     
     const filterButtonsContainer = document.getElementById('filter-buttons');
-    
-    if (currentStyle.metadata?.filters) {
-      Object.keys(currentStyle.metadata.filters).forEach(filterId => {
-        const filterConfig = currentStyle.metadata.filters[filterId];
-        const locale = getLocalizedFilterName(currentStyle.metadata.locale, filterId);
+    Object.keys(currentStyle.metadata.filters).forEach(filterId => {
+      const filterConfig = currentStyle.metadata.filters[filterId];
+      const locale = getLocalizedFilterName(currentStyle.metadata.locale, filterId);
+      
+      const groupContainer = document.createElement('div');
+      groupContainer.className = 'filter-group';
+      groupContainer.id = `filter-group-${filterId}`;
+      
+      const groupButton = document.createElement('button');
+      groupButton.id = `filter-${filterId}`;
+      groupButton.className = 'control-button active filter-group-button';
+      groupButton.textContent = locale;
+      groupButton.onclick = () => toggleFilterGroup(filterId);
+      groupContainer.appendChild(groupButton);
+      
+      if (filterConfig.length > 1) {
+        const subButtonsContainer = document.createElement('div');
+        subButtonsContainer.className = 'filter-sub-buttons';
+        subButtonsContainer.id = `filter-sub-${filterId}`;
         
-        const groupContainer = document.createElement('div');
-        groupContainer.className = 'filter-group';
-        groupContainer.id = `filter-group-${filterId}`;
-        
-        const groupButton = document.createElement('button');
-        groupButton.id = `filter-${filterId}`;
-        groupButton.className = 'control-button active filter-group-button';
-        groupButton.textContent = locale;
-        groupButton.onclick = () => toggleFilterGroup(filterId);
-        groupContainer.appendChild(groupButton);
-        
-        if (filterConfig.length > 1) {
-          const subButtonsContainer = document.createElement('div');
-          subButtonsContainer.className = 'filter-sub-buttons';
-          subButtonsContainer.id = `filter-sub-${filterId}`;
+        filterConfig.forEach(item => {
+          const subButton = document.createElement('button');
+          subButton.id = `filter-sub-${filterId}-${item.id}`;
+          subButton.className = 'control-button active filter-sub-button';
+          const subLocale = getLocalizedFilterName(currentStyle.metadata.locale, item.id);
+          subButton.textContent = subLocale || item.id;
+          subButton.onclick = () => toggleSubFilter(filterId, item.id);
+          subButtonsContainer.appendChild(subButton);
           
-          filterConfig.forEach(item => {
-            const subButton = document.createElement('button');
-            subButton.id = `filter-sub-${filterId}-${item.id}`;
-            subButton.className = 'control-button active filter-sub-button';
-            const subLocale = getLocalizedFilterName(currentStyle.metadata.locale, item.id);
-            subButton.textContent = subLocale || item.id;
-            subButton.onclick = () => toggleSubFilter(filterId, item.id);
-            subButtonsContainer.appendChild(subButton);
-            
-            const subFilterKey = `${filterId}_${item.id}`;
-            filterStates[subFilterKey] = true;
-          });
-          
-          groupContainer.appendChild(subButtonsContainer);
-        }
+          filterStates[`${filterId}_${item.id}`] = true;
+        });
         
-        filterButtonsContainer.appendChild(groupContainer);
-        filterStates[filterId] = true;
-      });
-    }
-  }
+        groupContainer.appendChild(subButtonsContainer);
+      }
+      
+      filterButtonsContainer.appendChild(groupContainer);
+      filterStates[filterId] = true;
+    });
+  };
 
   let fpsCounter = 0, lastFpsTime = 0, frameCount = 0;
   let performanceMonitor = null;
   let performancePanelVisible = true;
 
-  function togglePerformancePanel() {
+  const togglePerformancePanel = () => {
     const panel = document.getElementById('performance-panel');
     performancePanelVisible = !performancePanelVisible;
     panel.style.display = performancePanelVisible ? 'block' : 'none';
-  }
+  };
 
-  function startPerformanceMonitoring() {
+  const startPerformanceMonitoring = () => {
     if (performanceMonitor) return;
     performanceMonitor = setInterval(updatePerformanceMetrics, 1000);
-  }
+  };
 
-  function stopPerformanceMonitoring() {
+  const stopPerformanceMonitoring = () => {
     if (performanceMonitor) {
       clearInterval(performanceMonitor);
       performanceMonitor = null;
     }
-  }
+  };
 
-  function updatePerformanceMetrics() {
+  const updatePerformanceMetrics = () => {
     if (!map) return;
 
     const now = performance.now();
@@ -722,23 +656,22 @@ javascript:
     frameCount++;
     if (now - lastFpsTime >= 1000) {
       const fps = Math.round((frameCount * 1000) / (now - lastFpsTime));
-      document.getElementById('fps-value').textContent = fps;
-      document.getElementById('fps-value').className = 
-        `metric-value ${fps < 30 ? 'error' : fps < 50 ? 'warning' : 'success'}`;
+      const fpsElement = document.getElementById('fps-value');
+      fpsElement.textContent = fps;
+      fpsElement.className = `metric-value ${fps < 30 ? 'error' : fps < 50 ? 'warning' : 'success'}`;
       
       const frameTime = Math.round(1000 / fps);
-      document.getElementById('frame-time-value').textContent = `${frameTime}ms`;
-      document.getElementById('frame-time-value').className = 
-        `metric-value ${frameTime > 33 ? 'error' : frameTime > 20 ? 'warning' : 'success'}`;
+      const frameElement = document.getElementById('frame-time-value');
+      frameElement.textContent = `${frameTime}ms`;
+      frameElement.className = `metric-value ${frameTime > 33 ? 'error' : frameTime > 20 ? 'warning' : 'success'}`;
       
       lastFpsTime = now;
       frameCount = 0;
     }
 
     try {
-      const tilesLoaded = map.getStyle()?.sources ? 
-        Object.keys(map.getStyle().sources).length : 0;
-      document.getElementById('tiles-loaded-value').textContent = tilesLoaded;
+      const sourcesCount = map.getStyle()?.sources ? Object.keys(map.getStyle().sources).length : 0;
+      document.getElementById('tiles-loaded-value').textContent = sourcesCount;
       
       const loadingTiles = map.isStyleLoaded() ? 0 : 1;
       document.getElementById('tiles-loading-value').textContent = loadingTiles;
@@ -749,9 +682,9 @@ javascript:
     try {
       if (performance.memory) {
         const memoryMB = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
-        document.getElementById('memory-usage-value').textContent = `${memoryMB}MB`;
-        document.getElementById('memory-usage-value').className = 
-          `metric-value ${memoryMB > 500 ? 'error' : memoryMB > 200 ? 'warning' : 'success'}`;
+        const memoryElement = document.getElementById('memory-usage-value');
+        memoryElement.textContent = `${memoryMB}MB`;
+        memoryElement.className = `metric-value ${memoryMB > 500 ? 'error' : memoryMB > 200 ? 'warning' : 'success'}`;
       } else {
         document.getElementById('memory-usage-value').textContent = 'N/A';
       }
@@ -769,9 +702,9 @@ javascript:
           }
         });
       }
-      document.getElementById('layers-active-value').textContent = activeLayers;
-      document.getElementById('layers-active-value').className = 
-        `metric-value ${activeLayers > 50 ? 'warning' : 'success'}`;
+      const layersElement = document.getElementById('layers-active-value');
+      layersElement.textContent = activeLayers;
+      layersElement.className = `metric-value ${activeLayers > 50 ? 'warning' : 'success'}`;
     } catch (e) {
       document.getElementById('layers-active-value').textContent = 'N/A';
     }
@@ -782,12 +715,19 @@ javascript:
     } catch (e) {
       document.getElementById('zoom-level-value').textContent = 'N/A';
     }
-  }
+  };
 
-  function countFrame() {
+  const countFrame = () => {
     frameCount++;
     requestAnimationFrame(countFrame);
-  }
+  };
+
+  window.switchMode = switchMode;
+  window.toggleBasemap = toggleBasemap;
+  window.toggleHoverMode = toggleHoverMode;
+  window.toggleAllFilters = toggleAllFilters;
+  window.toggleAllLayers = toggleAllLayers;
+  window.togglePerformancePanel = togglePerformancePanel;
 
   initializeMap();
   
