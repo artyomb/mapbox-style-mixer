@@ -80,12 +80,30 @@ helpers do
     return [] unless File.exist?(mixed_file)
     
     JSON.parse(File.read(mixed_file))
-      .dig('layers')&.flat_map { |layer| layer.dig('layout', 'text-font') || [] }
-      &.map { |font| { name: font, path: font } }
-      &.uniq || []
+      .dig('layers')&.flat_map { |layer| extract_fonts_from_layer(layer) }
+      &.uniq { |font| font[:path] } || []
   rescue => e
     LOGGER.error "Error extracting fonts for #{style_id}: #{e.message}"
     []
+  end
+
+  def extract_fonts_from_layer(layer)
+    font_config = layer.dig('layout', 'text-font')
+    return [] unless font_config
+    
+    case font_config
+    when Array then font_config.map { |font| { name: font, path: font } }
+    when Hash then extract_fonts_from_stops(font_config['stops'])
+    else []
+    end
+  end
+
+  def extract_fonts_from_stops(stops)
+    return [] unless stops&.is_a?(Array)
+    
+    stops.flat_map { |stop| stop[1] if stop.is_a?(Array) && stop[1] }
+         .compact.map { |fonts| fonts.is_a?(Array) ? fonts : [fonts] }
+         .flatten.map { |font| { name: font, path: font } }
   end
   
 
