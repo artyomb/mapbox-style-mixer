@@ -7,6 +7,8 @@ require 'slim'
 
 StackServiceBase.rack_setup self
 
+set :public_folder, File.expand_path('public', __dir__)
+
 $config = YAML.load_file(ENV['CONFIG_PATH'] || File.expand_path('configs/styles_config.yaml', __dir__))
 START_TIME = Time.now
 $initialization_status = { state: 'error', progress: 0, message: 'Initializing...' }
