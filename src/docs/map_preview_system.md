@@ -28,9 +28,54 @@ The Map Preview System is a sophisticated web-based interface for visualizing an
 
 ## Two-Level Filtering System
 
-### Concept
+### Architecture
 
-The system implements a sophisticated two-level filtering mechanism that can handle both simple layer visibility and complex Mapbox-style expressions.
+The filtering system is implemented as a separate `Filters` class (`src/public/js/filters.js`) that encapsulates all filtering logic and provides a clean API for filter management.
+
+### Class Structure
+
+```javascript
+class Filters {
+  constructor(options) {
+    this.map = options.map;           // MapLibre map instance
+    this.style = options.style;       // Style URL or object
+    this.container = options.container; // DOM container for buttons
+    this.element_template = options.element_template; // Template for elements
+    this.group_template = options.group_template;     // Template for groups
+    
+    this.filterStates = {};
+    this.subFilterStatesBeforeGroupToggle = {};
+    this.currentStyle = null;
+    this.currentMode = 'filters';
+  }
+
+  init() { /* Initialize filters */ }
+  setMode(mode) { /* Switch between filter/layer modes */ }
+  applyFilterMode() { /* Apply filter mode logic */ }
+  applyFilter(filterId, isActive) { /* Apply specific filter */ }
+  toggleAllFilters() { /* Toggle all filters */ }
+  toggleFilterGroup(filterId) { /* Toggle filter group */ }
+  toggleSubFilter(groupId, subFilterId) { /* Toggle sub-filter */ }
+  createFilterButtons() { /* Create UI buttons */ }
+  updateFilterButtons() { /* Update button states */ }
+}
+```
+
+### Integration
+
+The `Filters` class is integrated into the main map interface:
+
+```javascript
+// In map.slim
+filters = new Filters({
+  map: map,
+  style: style_url,
+  container: '#filter-buttons',
+  element_template: (title) => `<div class="element">${title}</div>`,
+  group_template: (title) => `<div class="group">${title}</div>`
+});
+filters.init();
+```
 
 ### Level 1: Simple Layer Filtering
 
@@ -38,8 +83,8 @@ The system implements a sophisticated two-level filtering mechanism that can han
 
 **Implementation**:
 ```javascript
-const applyLevel1Filter = (filterId, isActive, filterConfig) => {
-  currentStyle.layers.forEach(layer => {
+applyLevel1Filter(filterId, isActive, filterConfig) {
+  this.currentStyle.layers.forEach(layer => {
     if (!layer.metadata?.filter_id) return;
     
     const matchingFilter = filterConfig.find(filter => filter.id === layer.metadata.filter_id);
@@ -47,16 +92,16 @@ const applyLevel1Filter = (filterId, isActive, filterConfig) => {
       if (filterConfig.length > 1) {
         // Sub-filter logic
         const subFilterKey = `${filterId}_${layer.metadata.filter_id}`;
-        const subFilterActive = filterStates[subFilterKey];
+        const subFilterActive = this.filterStates[subFilterKey];
         const visibility = (isActive && subFilterActive) ? 'visible' : 'none';
-        map.getLayer(layer.id) && map.setLayoutProperty(layer.id, 'visibility', visibility);
+        this.map.getLayer(layer.id) && this.map.setLayoutProperty(layer.id, 'visibility', visibility);
       } else {
         // Simple on/off
-        map.getLayer(layer.id) && map.setLayoutProperty(layer.id, 'visibility', isActive ? 'visible' : 'none');
+        this.map.getLayer(layer.id) && this.map.setLayoutProperty(layer.id, 'visibility', isActive ? 'visible' : 'none');
       }
     }
   });
-};
+}
 ```
 
 **Example Style Configuration**:
@@ -102,18 +147,18 @@ const applyLevel1Filter = (filterId, isActive, filterConfig) => {
 The system automatically determines which filtering level to use based on the presence of `filter` expressions in the metadata:
 
 ```javascript
-const applyFilter = (filterId, isActive) => {
-  if (currentMode !== 'filters' || !currentStyle?.metadata?.filters) return;
+applyFilter(filterId, isActive) {
+  if (this.currentMode !== 'filters' || !this.currentStyle?.metadata?.filters) return;
   
-  const filterConfig = currentStyle.metadata.filters[filterId];
+  const filterConfig = this.currentStyle.metadata.filters[filterId];
   if (!filterConfig) return;
 
   // Key detection logic: check if any filter has a 'filter' property
   const hasMapboxFilters = filterConfig.some(filter => filter.filter);
   
   // Route to appropriate filtering level
-  hasMapboxFilters ? applyLevel2Filter(filterId, isActive, filterConfig) : applyLevel1Filter(filterId, isActive, filterConfig);
-};
+  hasMapboxFilters ? this.applyLevel2Filter(filterId, isActive, filterConfig) : this.applyLevel1Filter(filterId, isActive, filterConfig);
+}
 ```
 
 **Detection Logic**:
@@ -170,31 +215,31 @@ const applyFilter = (filterId, isActive) => {
 
 **Implementation**:
 ```javascript
-const applyLevel2Filter = (filterId, isActive, filterConfig) => {
+applyLevel2Filter(filterId, isActive, filterConfig) {
   const subFiltersWithExpr = filterConfig.filter(f => !!f.filter);
-  const generalLayers = currentStyle.layers.filter(layer => layer.metadata?.filter_id === filterId);
+  const generalLayers = this.currentStyle.layers.filter(layer => layer.metadata?.filter_id === filterId);
   
   if (!isActive) {
     // Disable all layers
     generalLayers.forEach(layer => {
-      if (map.getLayer(layer.id)) {
-        map.setLayoutProperty(layer.id, 'visibility', 'none');
-        map.setFilter(layer.id, null);
+      if (this.map.getLayer(layer.id)) {
+        this.map.setLayoutProperty(layer.id, 'visibility', 'none');
+        this.map.setFilter(layer.id, null);
       }
     });
     return;
   }
 
   // Apply expression filters
-  const activeWithExpr = subFiltersWithExpr.filter(f => filterStates[`${filterId}_${f.id}`] !== false);
+  const activeWithExpr = subFiltersWithExpr.filter(f => this.filterStates[`${filterId}_${f.id}`] !== false);
   
   if (activeWithExpr.length === 1) {
     // Single filter - apply directly
     const expr = activeWithExpr[0].filter;
     generalLayers.forEach(layer => {
-      if (map.getLayer(layer.id)) {
-        map.setLayoutProperty(layer.id, 'visibility', 'visible');
-        map.setFilter(layer.id, expr);
+      if (this.map.getLayer(layer.id)) {
+        this.map.setLayoutProperty(layer.id, 'visibility', 'visible');
+        this.map.setFilter(layer.id, expr);
       }
     });
   } else if (activeWithExpr.length > 1) {
@@ -202,13 +247,13 @@ const applyLevel2Filter = (filterId, isActive, filterConfig) => {
     const exprs = activeWithExpr.map(f => f.filter);
     const combined = ['any', ...exprs];
     generalLayers.forEach(layer => {
-      if (map.getLayer(layer.id)) {
-        map.setLayoutProperty(layer.id, 'visibility', 'visible');
-        map.setFilter(layer.id, combined);
+      if (this.map.getLayer(layer.id)) {
+        this.map.setLayoutProperty(layer.id, 'visibility', 'visible');
+        this.map.setFilter(layer.id, combined);
       }
     });
   }
-};
+}
 ```
 
 **Example Style Configuration**:
@@ -290,6 +335,59 @@ const toggleLayer = (layerId) => {
   updateLayerButtons();
 };
 ```
+
+## Architecture Benefits
+
+### Separation of Concerns
+
+The `Filters` class architecture provides several key benefits:
+
+1. **Modularity**: Filter logic is completely separated from map initialization and UI management
+2. **Reusability**: The `Filters` class can be easily integrated into other projects
+3. **Testability**: Filter logic can be tested independently
+4. **Maintainability**: Changes to filtering logic don't affect other parts of the system
+
+### Clean API
+
+The `Filters` class provides a clean, object-oriented API:
+
+```javascript
+// Initialize filters
+const filters = new Filters(options);
+filters.init();
+
+// Switch modes
+filters.setMode('filters');  // or 'layers'
+
+// Control filters
+filters.toggleAllFilters();
+filters.toggleFilterGroup('weather');
+filters.toggleSubFilter('weather', 'temperature');
+```
+
+### State Management
+
+The class manages its own state internally:
+
+```javascript
+class Filters {
+  constructor(options) {
+    this.filterStates = {};                    // Individual filter states
+    this.subFilterStatesBeforeGroupToggle = {}; // State preservation
+    this.currentStyle = null;                  // Current style reference
+    this.currentMode = 'filters';              // Current mode
+  }
+}
+```
+
+### Integration Points
+
+The class integrates seamlessly with the system:
+
+- **Map Integration**: Direct access to MapLibre map instance
+- **UI Integration**: Automatic button creation and state updates
+- **Style Integration**: Automatic style parsing and filter extraction
+- **Event Integration**: Handles all filter-related user interactions
 
 ## Performance Monitoring
 

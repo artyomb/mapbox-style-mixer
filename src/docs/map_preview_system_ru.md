@@ -28,9 +28,54 @@
 
 ## Двухуровневая система фильтрации
 
-### Концепция
+### Архитектура
 
-Система реализует сложный двухуровневый механизм фильтрации, который может обрабатывать как простую видимость слоев, так и сложные Mapbox-выражения.
+Система фильтрации реализована как отдельный класс `Filters` (`src/public/js/filters.js`), который инкапсулирует всю логику фильтрации и предоставляет чистый API для управления фильтрами.
+
+### Структура класса
+
+```javascript
+class Filters {
+  constructor(options) {
+    this.map = options.map;           // Экземпляр карты MapLibre
+    this.style = options.style;       // URL стиля или объект
+    this.container = options.container; // DOM контейнер для кнопок
+    this.element_template = options.element_template; // Шаблон для элементов
+    this.group_template = options.group_template;     // Шаблон для групп
+    
+    this.filterStates = {};
+    this.subFilterStatesBeforeGroupToggle = {};
+    this.currentStyle = null;
+    this.currentMode = 'filters';
+  }
+
+  init() { /* Инициализация фильтров */ }
+  setMode(mode) { /* Переключение между режимами фильтр/слои */ }
+  applyFilterMode() { /* Применение логики режима фильтров */ }
+  applyFilter(filterId, isActive) { /* Применение конкретного фильтра */ }
+  toggleAllFilters() { /* Переключение всех фильтров */ }
+  toggleFilterGroup(filterId) { /* Переключение группы фильтров */ }
+  toggleSubFilter(groupId, subFilterId) { /* Переключение подфильтра */ }
+  createFilterButtons() { /* Создание UI кнопок */ }
+  updateFilterButtons() { /* Обновление состояний кнопок */ }
+}
+```
+
+### Интеграция
+
+Класс `Filters` интегрируется в основной интерфейс карты:
+
+```javascript
+// В map.slim
+filters = new Filters({
+  map: map,
+  style: style_url,
+  container: '#filter-buttons',
+  element_template: (title) => `<div class="element">${title}</div>`,
+  group_template: (title) => `<div class="group">${title}</div>`
+});
+filters.init();
+```
 
 ### Уровень 1: Простая фильтрация слоев
 
@@ -38,8 +83,8 @@
 
 **Реализация**:
 ```javascript
-const applyLevel1Filter = (filterId, isActive, filterConfig) => {
-  currentStyle.layers.forEach(layer => {
+applyLevel1Filter(filterId, isActive, filterConfig) {
+  this.currentStyle.layers.forEach(layer => {
     if (!layer.metadata?.filter_id) return;
     
     const matchingFilter = filterConfig.find(filter => filter.id === layer.metadata.filter_id);
@@ -47,16 +92,16 @@ const applyLevel1Filter = (filterId, isActive, filterConfig) => {
       if (filterConfig.length > 1) {
         // Логика подфильтров
         const subFilterKey = `${filterId}_${layer.metadata.filter_id}`;
-        const subFilterActive = filterStates[subFilterKey];
+        const subFilterActive = this.filterStates[subFilterKey];
         const visibility = (isActive && subFilterActive) ? 'visible' : 'none';
-        map.getLayer(layer.id) && map.setLayoutProperty(layer.id, 'visibility', visibility);
+        this.map.getLayer(layer.id) && this.map.setLayoutProperty(layer.id, 'visibility', visibility);
       } else {
         // Простое включение/выключение
-        map.getLayer(layer.id) && map.setLayoutProperty(layer.id, 'visibility', isActive ? 'visible' : 'none');
+        this.map.getLayer(layer.id) && this.map.setLayoutProperty(layer.id, 'visibility', isActive ? 'visible' : 'none');
       }
     }
   });
-};
+}
 ```
 
 **Пример конфигурации стиля**:
@@ -102,18 +147,18 @@ const applyLevel1Filter = (filterId, isActive, filterConfig) => {
 Система автоматически определяет, какой уровень фильтрации использовать, основываясь на наличии выражений `filter` в метаданных:
 
 ```javascript
-const applyFilter = (filterId, isActive) => {
-  if (currentMode !== 'filters' || !currentStyle?.metadata?.filters) return;
+applyFilter(filterId, isActive) {
+  if (this.currentMode !== 'filters' || !this.currentStyle?.metadata?.filters) return;
   
-  const filterConfig = currentStyle.metadata.filters[filterId];
+  const filterConfig = this.currentStyle.metadata.filters[filterId];
   if (!filterConfig) return;
 
   // Ключевая логика определения: проверяем, есть ли у фильтра свойство 'filter'
   const hasMapboxFilters = filterConfig.some(filter => filter.filter);
   
   // Направляем на соответствующий уровень фильтрации
-  hasMapboxFilters ? applyLevel2Filter(filterId, isActive, filterConfig) : applyLevel1Filter(filterId, isActive, filterConfig);
-};
+  hasMapboxFilters ? this.applyLevel2Filter(filterId, isActive, filterConfig) : this.applyLevel1Filter(filterId, isActive, filterConfig);
+}
 ```
 
 **Логика определения**:
@@ -170,31 +215,31 @@ const applyFilter = (filterId, isActive) => {
 
 **Реализация**:
 ```javascript
-const applyLevel2Filter = (filterId, isActive, filterConfig) => {
+applyLevel2Filter(filterId, isActive, filterConfig) {
   const subFiltersWithExpr = filterConfig.filter(f => !!f.filter);
-  const generalLayers = currentStyle.layers.filter(layer => layer.metadata?.filter_id === filterId);
+  const generalLayers = this.currentStyle.layers.filter(layer => layer.metadata?.filter_id === filterId);
   
   if (!isActive) {
     // Отключить все слои
     generalLayers.forEach(layer => {
-      if (map.getLayer(layer.id)) {
-        map.setLayoutProperty(layer.id, 'visibility', 'none');
-        map.setFilter(layer.id, null);
+      if (this.map.getLayer(layer.id)) {
+        this.map.setLayoutProperty(layer.id, 'visibility', 'none');
+        this.map.setFilter(layer.id, null);
       }
     });
     return;
   }
 
   // Применить фильтры выражений
-  const activeWithExpr = subFiltersWithExpr.filter(f => filterStates[`${filterId}_${f.id}`] !== false);
+  const activeWithExpr = subFiltersWithExpr.filter(f => this.filterStates[`${filterId}_${f.id}`] !== false);
   
   if (activeWithExpr.length === 1) {
     // Один фильтр - применить напрямую
     const expr = activeWithExpr[0].filter;
     generalLayers.forEach(layer => {
-      if (map.getLayer(layer.id)) {
-        map.setLayoutProperty(layer.id, 'visibility', 'visible');
-        map.setFilter(layer.id, expr);
+      if (this.map.getLayer(layer.id)) {
+        this.map.setLayoutProperty(layer.id, 'visibility', 'visible');
+        this.map.setFilter(layer.id, expr);
       }
     });
   } else if (activeWithExpr.length > 1) {
@@ -202,13 +247,13 @@ const applyLevel2Filter = (filterId, isActive, filterConfig) => {
     const exprs = activeWithExpr.map(f => f.filter);
     const combined = ['any', ...exprs];
     generalLayers.forEach(layer => {
-      if (map.getLayer(layer.id)) {
-        map.setLayoutProperty(layer.id, 'visibility', 'visible');
-        map.setFilter(layer.id, combined);
+      if (this.map.getLayer(layer.id)) {
+        this.map.setLayoutProperty(layer.id, 'visibility', 'visible');
+        this.map.setFilter(layer.id, combined);
       }
     });
   }
-};
+}
 ```
 
 **Пример конфигурации стиля**:
@@ -290,6 +335,59 @@ const toggleLayer = (layerId) => {
   updateLayerButtons();
 };
 ```
+
+## Преимущества архитектуры
+
+### Разделение ответственности
+
+Архитектура класса `Filters` предоставляет несколько ключевых преимуществ:
+
+1. **Модульность**: Логика фильтрации полностью отделена от инициализации карты и управления UI
+2. **Переиспользование**: Класс `Filters` можно легко интегрировать в другие проекты
+3. **Тестируемость**: Логику фильтрации можно тестировать независимо
+4. **Поддерживаемость**: Изменения в логике фильтрации не затрагивают другие части системы
+
+### Чистый API
+
+Класс `Filters` предоставляет чистый объектно-ориентированный API:
+
+```javascript
+// Инициализация фильтров
+const filters = new Filters(options);
+filters.init();
+
+// Переключение режимов
+filters.setMode('filters');  // или 'layers'
+
+// Управление фильтрами
+filters.toggleAllFilters();
+filters.toggleFilterGroup('weather');
+filters.toggleSubFilter('weather', 'temperature');
+```
+
+### Управление состоянием
+
+Класс управляет своим состоянием внутренне:
+
+```javascript
+class Filters {
+  constructor(options) {
+    this.filterStates = {};                    // Состояния отдельных фильтров
+    this.subFilterStatesBeforeGroupToggle = {}; // Сохранение состояния
+    this.currentStyle = null;                  // Ссылка на текущий стиль
+    this.currentMode = 'filters';              // Текущий режим
+  }
+}
+```
+
+### Точки интеграции
+
+Класс бесшовно интегрируется с системой:
+
+- **Интеграция с картой**: Прямой доступ к экземпляру карты MapLibre
+- **Интеграция с UI**: Автоматическое создание кнопок и обновление состояний
+- **Интеграция со стилями**: Автоматический парсинг стилей и извлечение фильтров
+- **Интеграция с событиями**: Обработка всех пользовательских взаимодействий с фильтрами
 
 ## Мониторинг производительности
 
