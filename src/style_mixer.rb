@@ -47,7 +47,10 @@ class StyleMixer
     sprite_merger = SpriteMerger.new(@config)
     sprite_result = sprite_merger.merge_sprites_for_mix(mix_id)
     
-    mixed_style['sprite'] = sprite_result ? "/sprite/#{mix_id}_sprite" : nil
+    sprite_base_path = "/sprite/#{mix_id}_sprite"
+    sprite_path = File.exist?(File.expand_path("sprite/#{mix_id}_sprite.json", __dir__)) ? sprite_base_path : nil
+    
+    mixed_style['sprite'] = sprite_path
     mixed_style['glyphs'] = "/fonts/{fontstack}/{range}.pbf"
     
     FileUtils.mkdir_p(@mixed_dir)

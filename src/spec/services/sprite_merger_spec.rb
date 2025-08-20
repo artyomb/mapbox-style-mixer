@@ -9,6 +9,10 @@ RSpec.describe SpriteMerger do
     FileUtils.mkdir_p('src/sprites')
     FileUtils.mkdir_p('src/sprite')
     
+    create_test_sprites
+  end
+
+  def create_test_sprites
     create_sprite_dir('test_mix_weather_1', {
       'icon1' => { 'width' => 24, 'height' => 24, 'x' => 0, 'y' => 0, 'pixelRatio' => 1 },
       'icon2' => { 'width' => 32, 'height' => 32, 'x' => 24, 'y' => 0, 'pixelRatio' => 1 }
@@ -16,6 +20,15 @@ RSpec.describe SpriteMerger do
     
     create_sprite_dir('test_mix_location_2', {
       'icon3' => { 'width' => 16, 'height' => 16, 'x' => 0, 'y' => 0, 'pixelRatio' => 1 }
+    })
+    
+    create_sprite_dir('test_mix_weather_1_@2x', {
+      'icon1' => { 'width' => 48, 'height' => 48, 'x' => 0, 'y' => 0, 'pixelRatio' => 2 },
+      'icon2' => { 'width' => 64, 'height' => 64, 'x' => 48, 'y' => 0, 'pixelRatio' => 2 }
+    })
+    
+    create_sprite_dir('test_mix_location_2_@2x', {
+      'icon3' => { 'width' => 32, 'height' => 32, 'x' => 0, 'y' => 0, 'pixelRatio' => 2 }
     })
   end
 
@@ -44,10 +57,10 @@ RSpec.describe SpriteMerger do
     end
 
     it 'finds sprite directories correctly' do
-      dirs = Dir.glob('src/sprites/test_mix_*')
-      expect(dirs.length).to eq(2)
-      expect(dirs.map { |d| d.sub('/src/', 'src/') }).to include('src/sprites/test_mix_weather_1')
-      expect(dirs.map { |d| d.sub('/src/', 'src/') }).to include('src/sprites/test_mix_location_2')
+      regular_dirs = Dir.glob('src/sprites/test_mix_*').select { |d| Dir.exist?(d) && !d.end_with?('_@2x') }
+      expect(regular_dirs.length).to eq(2)
+      expect(regular_dirs.map { |d| d.sub('/src/', 'src/') }).to include('src/sprites/test_mix_weather_1')
+      expect(regular_dirs.map { |d| d.sub('/src/', 'src/') }).to include('src/sprites/test_mix_location_2')
     end
 
     it 'handles missing sprite files gracefully' do

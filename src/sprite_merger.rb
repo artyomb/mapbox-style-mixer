@@ -24,20 +24,25 @@ class SpriteMerger
   def merge_sprites_for_mix(mix_id)
     LOGGER.info "Starting sprite merging for #{mix_id}"
     
-    sprite_files = collect_sprite_files(mix_id)
-    if sprite_files.empty?
-      LOGGER.warn "No sprite directories found for #{mix_id}"
-      return false
-    end
+    regular_sprites = collect_sprite_files(mix_id)
+    high_dpi_sprites = collect_sprite_files(mix_id, true)
     
-    success = merge_sprites(sprite_files, mix_id)
+    merge_sprite_set(regular_sprites, mix_id, false)
+    merge_sprite_set(high_dpi_sprites, mix_id, true)
+    
+    regular_sprites.any? || high_dpi_sprites.any?
+  end
+
+  def merge_sprite_set(sprite_files, mix_id, high_dpi)
+    return if sprite_files.empty?
+    
+    success = merge_sprites(sprite_files, mix_id, high_dpi)
+    suffix = high_dpi ? "@2x" : ""
     
     if success
-      LOGGER.info "Successfully merged #{sprite_files.length} sprites for #{mix_id}"
-      true
+      LOGGER.info "Successfully merged #{sprite_files.length} sprites#{suffix} for #{mix_id}"
     else
-      LOGGER.error "Failed to merge sprites for #{mix_id}"
-      false
+      LOGGER.error "Failed to merge sprites#{suffix} for #{mix_id}"
     end
   end
 
@@ -48,49 +53,52 @@ class SpriteMerger
     FileUtils.mkdir_p(@output_dir)
   end
 
-  def collect_sprite_files(mix_id)
-    sprite_dirs = Dir.glob("#{@sprites_dir}/#{mix_id}_*").select { |d| Dir.exist?(d) }
-    return [] if sprite_dirs.empty?
+  def collect_sprite_files(mix_id, high_dpi = false)
+    if high_dpi
+      pattern = "#{@sprites_dir}/#{mix_id}_*_@2x"
+      sprite_dirs = Dir.glob(pattern).select { |d| Dir.exist?(d) }
+    else
+      pattern = "#{@sprites_dir}/#{mix_id}_*"
+      sprite_dirs = Dir.glob(pattern).select { |d| Dir.exist?(d) && !d.end_with?('_@2x') }
+    end
     
-    sprite_dirs.map do |dir|
-      png_file = File.join(dir, 'sprite.png')
-      json_file = File.join(dir, 'sprite.json')
-      
-      next unless File.exist?(png_file) && File.exist?(json_file)
-      
-      begin
-        json_data = JSON.parse(File.read(json_file))
-        LOGGER.debug "Found sprite from #{dir}"
-        { png_file: png_file, json_file: json_file, json_data: json_data, dir: dir }
-      rescue => e
-        LOGGER.error "Failed to load sprite from #{dir}: #{e.message}"
-        nil
-      end
-    end.compact
+    sprite_dirs.map { |dir| load_sprite_data(dir) }.compact
   end
 
-  def merge_sprites(sprite_files, mix_id)
+  def load_sprite_data(dir)
+    png_file = File.join(dir, 'sprite.png')
+    json_file = File.join(dir, 'sprite.json')
+    
+    return unless File.exist?(png_file) && File.exist?(json_file)
+    
+    json_data = JSON.parse(File.read(json_file))
+    LOGGER.debug "Found sprite from #{dir}"
+    { png_file: png_file, json_file: json_file, json_data: json_data, dir: dir }
+  rescue => e
+    LOGGER.error "Failed to load sprite from #{dir}: #{e.message}"
+    nil
+  end
+
+  def merge_sprites(sprite_files, mix_id, high_dpi = false)
     return false if sprite_files.empty?
     
-    begin
-      return copy_single_sprite(sprite_files.first, mix_id) if sprite_files.length == 1
-      
-      output_png = File.join(@output_dir, "#{mix_id}_sprite.png")
-      output_json = File.join(@output_dir, "#{mix_id}_sprite.json")
-      
-      png_files = sprite_files.map { |sf| sf[:png_file] }
-      
-      return false unless merge_png_files(png_files, output_png)
-      
-      merged_json = merge_json_metadata(sprite_files, png_files)
-      File.write(output_json, JSON.pretty_generate(merged_json))
-      
-      LOGGER.debug "Saved merged sprite using ImageMagick"
-      true
-    rescue => e
-      LOGGER.error "Error merging sprites: #{e.message}"
-      false
-    end
+    suffix = high_dpi ? "@2x" : ""
+    output_png = File.join(@output_dir, "#{mix_id}_sprite#{suffix}.png")
+    output_json = File.join(@output_dir, "#{mix_id}_sprite#{suffix}.json")
+    
+    return copy_single_sprite(sprite_files.first, mix_id, high_dpi) if sprite_files.length == 1
+    
+    png_files = sprite_files.map { |sf| sf[:png_file] }
+    return false unless merge_png_files(png_files, output_png)
+    
+    merged_json = merge_json_metadata(sprite_files, png_files)
+    File.write(output_json, JSON.pretty_generate(merged_json))
+    
+    LOGGER.debug "Saved merged sprite#{suffix} using ImageMagick"
+    true
+  rescue => e
+    LOGGER.error "Error merging sprites#{suffix}: #{e.message}"
+    false
   end
 
   def merge_png_files(png_files, output_file)
@@ -144,12 +152,14 @@ class SpriteMerger
     0
   end
 
-  def copy_single_sprite(sprite_file, mix_id)
+  def copy_single_sprite(sprite_file, mix_id, high_dpi = false)
     FileUtils.mkdir_p(@output_dir)
-    FileUtils.cp(sprite_file[:png_file], File.join(@output_dir, "#{mix_id}_sprite.png"))
-    FileUtils.cp(sprite_file[:json_file], File.join(@output_dir, "#{mix_id}_sprite.json"))
+    suffix = high_dpi ? "@2x" : ""
     
-    LOGGER.debug "Copied single sprite from #{sprite_file[:dir]}"
+    FileUtils.cp(sprite_file[:png_file], File.join(@output_dir, "#{mix_id}_sprite#{suffix}.png"))
+    FileUtils.cp(sprite_file[:json_file], File.join(@output_dir, "#{mix_id}_sprite#{suffix}.json"))
+    
+    LOGGER.debug "Copied single sprite#{suffix} from #{sprite_file[:dir]}"
     true
   end
 end

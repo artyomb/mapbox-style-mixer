@@ -53,8 +53,9 @@ RSpec.describe 'Sprite Handling for Non-Standard Styles' do
     it 'extracts valid sprites' do
       style = { 'sprite' => 'https://example.com/sprite' }
       sprites = downloader.send(:extract_sprites, style, 'test_mix', 'test_style', 1)
-      expect(sprites.length).to eq(1)
+      expect(sprites.length).to eq(2)
       expect(sprites.first[:url]).to eq('https://example.com/sprite')
+      expect(sprites.last[:url]).to eq('https://example.com/sprite@2x')
     end
 
     it 'handles invalid sprites gracefully' do
@@ -66,8 +67,9 @@ RSpec.describe 'Sprite Handling for Non-Standard Styles' do
     it 'handles sprites array' do
       style = { 'sprites' => ['https://example.com/sprite'] }
       sprites = downloader.send(:extract_sprites, style, 'test_mix', 'test_style', 1)
-      expect(sprites.length).to eq(1)
+      expect(sprites.length).to eq(2)
       expect(sprites.first[:url]).to eq('https://example.com/sprite')
+      expect(sprites.last[:url]).to eq('https://example.com/sprite@2x')
     end
 
     it 'handles invalid sprites array' do

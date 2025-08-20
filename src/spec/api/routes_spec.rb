@@ -31,6 +31,18 @@ RSpec.describe 'API Routes' do
         error_response(404, "Sprite PNG not found for mix '#{params[:mix_id]}'")
     end
     
+    get '/sprite/:mix_id@2x.json' do
+      params[:mix_id] == 'test_mix_sprite@2x' ?
+        json_response({ icon1: { width: 48, height: 48, x: 0, y: 0, pixelRatio: 2 } }) :
+        error_response(404, "Sprite JSON@2x not found for mix '#{params[:mix_id]}'")
+    end
+    
+    get '/sprite/:mix_id@2x.png' do
+      params[:mix_id] == 'test_mix_sprite@2x' ?
+        (content_type :png; 'fake_png_data_2x') :
+        error_response(404, "Sprite PNG@2x not found for mix '#{params[:mix_id]}'")
+    end
+
     get '/fonts/*/:range.pbf' do
       params[:splat].first == 'test_font' ?
         (content_type 'application/octet-stream'; 'fake_font_data') :
@@ -46,13 +58,20 @@ RSpec.describe 'API Routes' do
     FakeFS.activate!
     %w[src/mixed_styles src/sprite src/fonts/test_font].each { |dir| FileUtils.mkdir_p(dir) }
     
+    create_test_files
+  end
+
+  def create_test_files
     test_style = { 'version' => 8, 'id' => 'test_mix', 'name' => 'Test Style' }
     test_sprite = { 'icon1' => { 'width' => 24, 'height' => 24, 'x' => 0, 'y' => 0, 'pixelRatio' => 1 } }
+    test_sprite_2x = { 'icon1' => { 'width' => 48, 'height' => 48, 'x' => 0, 'y' => 0, 'pixelRatio' => 2 } }
     
     File.write('src/mixed_styles/test_mix.json', test_style.to_json)
     [
       ['src/sprite/test_mix_sprite.json', test_sprite.to_json],
       ['src/sprite/test_mix_sprite.png', 'fake_png_data'],
+      ['src/sprite/test_mix_sprite@2x.json', test_sprite_2x.to_json],
+      ['src/sprite/test_mix_sprite@2x.png', 'fake_png_data_2x'],
       ['src/fonts/test_font/0-255.pbf', 'fake_font_data']
     ].each { |path, content| File.write(path, content) }
     

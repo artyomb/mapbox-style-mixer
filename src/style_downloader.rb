@@ -87,7 +87,12 @@ class StyleDownloader
   def extract_sprites(style_json, mix_id, style_id, index)
     sprite_url = extract_sprite_url(style_json)
     return [] unless sprite_url && valid_url?(sprite_url)
-    [{ url: sprite_url, name: "#{mix_id}_#{style_id}_#{index + 1}" }]
+    
+    base_name = "#{mix_id}_#{style_id}_#{index + 1}"
+    [
+      { url: sprite_url, name: base_name },
+      { url: "#{sprite_url}@2x", name: "#{base_name}_@2x" }
+    ]
   end
 
   def extract_sprite_url(style_json)
@@ -137,14 +142,21 @@ class StyleDownloader
       FileUtils.mkdir_p(dir)
       
       %w[json png].each do |ext|
-        begin
-          r = Faraday.get("#{sprite_info[:url]}.#{ext}")
-          File.write(File.join(dir, "sprite.#{ext}"), r.body) if r.success?
-        rescue => e
-          LOGGER.warn "Failed to download sprite #{sprite_info[:url]}.#{ext}: #{e.message}"
-        end
+        download_sprite_file(sprite_info[:url], dir, ext)
       end
     end
+  end
+
+  def download_sprite_file(url, dir, ext)
+    r = Faraday.get("#{url}.#{ext}")
+    if r.success?
+      File.write(File.join(dir, "sprite.#{ext}"), r.body)
+      LOGGER.debug "Downloaded sprite: #{url}.#{ext}"
+    else
+      LOGGER.debug "Sprite not found: #{url}.#{ext} (status: #{r.status})"
+    end
+  rescue => e
+    LOGGER.warn "Failed to download sprite #{url}.#{ext}: #{e.message}"
   end
 
   def download_fonts(all_fontstacks, all_glyphs_urls)

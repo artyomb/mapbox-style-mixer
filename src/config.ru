@@ -131,14 +131,15 @@ helpers do
     end
   end
   
-  def serve_sprite_file(mix_id, extension)
-    sprite_file = File.expand_path("sprite/#{mix_id}.#{extension}", __dir__)
+  def serve_sprite_file(mix_id, extension, high_dpi = false)
+    suffix = high_dpi ? "@2x" : ""
+    sprite_file = File.expand_path("sprite/#{mix_id}#{suffix}.#{extension}", __dir__)
     
     if File.exist?(sprite_file)
       content_type extension == 'json' ? :json : :png
       File.read(sprite_file)
     else
-      halt 404, { error: "Sprite #{extension} not found for mix '#{mix_id}'" }.to_json
+      halt 404, { error: "Sprite #{extension}#{suffix} not found for mix '#{mix_id}'" }.to_json
     end
   end
   
@@ -204,6 +205,14 @@ end
 
 get '/sprite/:mix_id.png' do
   serve_sprite_file(params[:mix_id], 'png')
+end
+
+get '/sprite/:mix_id@2x.json' do
+  serve_sprite_file(params[:mix_id], 'json', true)
+end
+
+get '/sprite/:mix_id@2x.png' do
+  serve_sprite_file(params[:mix_id], 'png', true)
 end
 
 get '/fonts/*/:range.pbf' do
