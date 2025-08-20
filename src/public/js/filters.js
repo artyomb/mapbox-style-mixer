@@ -1,7 +1,6 @@
 class Filters {
     constructor(options) {
         this.map = options.map;
-        this.style = options.style;
         this.container = options.container;
         this.element_template = options.element_template || (title => `<div class="element">${title}</div>`);
         this.group_template = options.group_template || (title => `<div class="group">${title}</div>`);

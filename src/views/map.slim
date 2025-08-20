@@ -213,26 +213,25 @@ javascript:
     }
 
     map.on('load', async () => {
-      const onStyleReady = () => {
-        try { map.setProjection({ type: 'globe' }); } catch (_) {}
-        try { map.addControl(new maplibregl.GlobeControl(), 'top-right'); } catch (_) {}
+      try { 
+        currentStyle = map.getStyle(); 
         if (currentStyle) {
-          createLayerButtons();
+          checkStyleResources(currentStyle);
           filters = new Filters({
             map: map,
-            style: style_url,
             container: '#filter-buttons',
             element_template: (title) => `<div class="element">${title}</div>`,
             group_template: (title) => `<div class="group">${title}</div>`
           });
           filters.init();
+          createLayerButtons();
         }
-      };
-
-      try { 
-        currentStyle = map.getStyle(); 
-        currentStyle && checkStyleResources(currentStyle); 
       } catch (_) {}
+
+      const onStyleReady = () => {
+        try { map.setProjection({ type: 'globe' }); } catch (_) {}
+        try { map.addControl(new maplibregl.GlobeControl(), 'top-right'); } catch (_) {}
+      };
       
       map.once('idle', onStyleReady);
       
