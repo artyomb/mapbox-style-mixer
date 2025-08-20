@@ -12,6 +12,7 @@ A specialized service for combining and mixing Mapbox styles with support for sp
 - **Sprite Merging**: Automatic merging of sprite images and metadata
 - **Font Management**: Download and cache font files with range support
 - **Filter System**: Support for style filters with localization
+- **Map Preview System**: Interactive web-based map interface with real-time filtering
 - **Progress Tracking**: Real-time initialization progress monitoring
 - **REST API**: Complete API for style serving and management
 - **Docker Support**: Containerized deployment with volume mounting
@@ -101,6 +102,7 @@ styles:
 | `/styles` | GET | List all available styles | JSON |
 | `/styles/:id` | GET | Get mixed style JSON | JSON |
 | `/refresh` | GET | Reload and remix all styles | Redirect |
+| `/map` | GET | Interactive map preview interface | HTML |
 
 ### Resource Endpoints
 
@@ -142,6 +144,7 @@ styles:
 - **StyleDownloader**: Downloads source styles, sprites, and fonts
 - **StyleMixer**: Combines multiple styles with prefix management
 - **SpriteMerger**: Merges sprite images and metadata
+- **Map Preview System**: Interactive web interface with filtering capabilities
 - **Sinatra App**: REST API and web interface
 
 ### Data Flow
@@ -164,8 +167,12 @@ src/
 │   └── styles_config.yaml # Configuration file
 ├── views/                 # Web interface templates
 │   ├── index.slim         # Main page
-│   ├── map.slim           # Map preview
+│   ├── map.slim           # Map preview interface
+│   ├── map_layout.slim    # Map layout template
 │   └── layout.slim        # Layout template
+├── public/                # Static assets
+│   └── js/                # JavaScript files
+│       └── filters.js     # Filter system implementation
 ├── spec/                  # Test suite
 │   ├── api/               # API tests
 │   ├── services/          # Service tests
@@ -174,7 +181,9 @@ src/
 ├── sprite/                # Merged sprite files
 ├── sprites/               # Source sprite files
 ├── raw_styles/            # Downloaded source styles
-└── fonts/                 # Font files
+├── fonts/                 # Font files
+└── docs/                  # Documentation
+    └── map_preview_system.md  # Map preview system documentation
 ```
 
 ## Development
@@ -184,6 +193,17 @@ src/
 - Ruby 3.4+
 - Bundler
 - Docker (optional)
+
+### Map Preview System
+
+The service includes an interactive map preview system accessible at `/map`. This system provides:
+
+- **Dual Mode Interface**: Switch between filter-based and layer-based control
+- **Real-time Filtering**: Two-level filtering system with Mapbox expressions
+- **Performance Monitoring**: Real-time FPS, memory usage, and layer statistics
+- **Synchronized Maps**: Base map and style map with synchronized navigation
+
+For detailed documentation, see [Map Preview System Documentation](src/docs/map_preview_system.md).
 
 ### Setup
 
