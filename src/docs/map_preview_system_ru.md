@@ -38,7 +38,6 @@
 class Filters {
   constructor(options) {
     this.map = options.map;           // Экземпляр карты MapLibre
-    this.style = options.style;       // URL стиля или объект
     this.container = options.container; // DOM контейнер для кнопок
     this.element_template = options.element_template; // Шаблон для элементов
     this.group_template = options.group_template;     // Шаблон для групп
@@ -47,9 +46,10 @@ class Filters {
     this.subFilterStatesBeforeGroupToggle = {};
     this.currentStyle = null;
     this.currentMode = 'filters';
+    this.isUpdating = false;
   }
 
-  init() { /* Инициализация фильтров */ }
+  init() { /* Инициализация фильтров из карты */ }
   setMode(mode) { /* Переключение между режимами фильтр/слои */ }
   applyFilterMode() { /* Применение логики режима фильтров */ }
   applyFilter(filterId, isActive) { /* Применение конкретного фильтра */ }
@@ -69,7 +69,6 @@ class Filters {
 // В map.slim
 filters = new Filters({
   map: map,
-  style: style_url,
   container: '#filter-buttons',
   element_template: (title) => `<div class="element">${title}</div>`,
   group_template: (title) => `<div class="group">${title}</div>`
@@ -376,6 +375,7 @@ class Filters {
     this.subFilterStatesBeforeGroupToggle = {}; // Сохранение состояния
     this.currentStyle = null;                  // Ссылка на текущий стиль
     this.currentMode = 'filters';              // Текущий режим
+    this.isUpdating = false;                   // Флаг обновления
   }
 }
 ```
@@ -384,9 +384,9 @@ class Filters {
 
 Класс бесшовно интегрируется с системой:
 
-- **Интеграция с картой**: Прямой доступ к экземпляру карты MapLibre
+- **Интеграция с картой**: Прямой доступ к экземпляру карты MapLibre для получения стиля
 - **Интеграция с UI**: Автоматическое создание кнопок и обновление состояний
-- **Интеграция со стилями**: Автоматический парсинг стилей и извлечение фильтров
+- **Интеграция со стилями**: Автоматический парсинг стилей карты и извлечение фильтров
 - **Интеграция с событиями**: Обработка всех пользовательских взаимодействий с фильтрами
 
 ## Мониторинг производительности

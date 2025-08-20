@@ -38,7 +38,6 @@ The filtering system is implemented as a separate `Filters` class (`src/public/j
 class Filters {
   constructor(options) {
     this.map = options.map;           // MapLibre map instance
-    this.style = options.style;       // Style URL or object
     this.container = options.container; // DOM container for buttons
     this.element_template = options.element_template; // Template for elements
     this.group_template = options.group_template;     // Template for groups
@@ -47,9 +46,10 @@ class Filters {
     this.subFilterStatesBeforeGroupToggle = {};
     this.currentStyle = null;
     this.currentMode = 'filters';
+    this.isUpdating = false;
   }
 
-  init() { /* Initialize filters */ }
+  init() { /* Initialize filters from map */ }
   setMode(mode) { /* Switch between filter/layer modes */ }
   applyFilterMode() { /* Apply filter mode logic */ }
   applyFilter(filterId, isActive) { /* Apply specific filter */ }
@@ -69,7 +69,6 @@ The `Filters` class is integrated into the main map interface:
 // In map.slim
 filters = new Filters({
   map: map,
-  style: style_url,
   container: '#filter-buttons',
   element_template: (title) => `<div class="element">${title}</div>`,
   group_template: (title) => `<div class="group">${title}</div>`
@@ -376,6 +375,7 @@ class Filters {
     this.subFilterStatesBeforeGroupToggle = {}; // State preservation
     this.currentStyle = null;                  // Current style reference
     this.currentMode = 'filters';              // Current mode
+    this.isUpdating = false;                   // Update flag
   }
 }
 ```
@@ -384,9 +384,9 @@ class Filters {
 
 The class integrates seamlessly with the system:
 
-- **Map Integration**: Direct access to MapLibre map instance
+- **Map Integration**: Direct access to MapLibre map instance for style retrieval
 - **UI Integration**: Automatic button creation and state updates
-- **Style Integration**: Automatic style parsing and filter extraction
+- **Style Integration**: Automatic parsing of map styles and filter extraction
 - **Event Integration**: Handles all filter-related user interactions
 
 ## Performance Monitoring
