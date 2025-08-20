@@ -13,16 +13,21 @@ ruby:
     .mode-switcher
       button.mode-button.active id="mode-filters" onclick="switchMode(this, 'filters')" Filters
       button.mode-button id="mode-layers" onclick="switchMode(this, 'layers')" Layers
-    button.control-button onclick="toggleBasemap()" Toggle Basemap
     button.control-button onclick="toggleHoverMode()" id="hover-mode-btn" Hover Mode
     
     #filters-panel.control-panel.active
-      button.control-button onclick="toggleAllFilters()" Toggle All Filters
-      #filter-buttons
+      .control-panel-header
+        button.control-button onclick="toggleAllFilters()" Toggle All Filters
+        button.control-button onclick="toggleBasemap()" Toggle Basemap
+      .control-panel-content
+        #filter-buttons
     
     #layers-panel.control-panel
-      button.control-button onclick="toggleAllLayers()" Toggle All Layers
-      #layer-buttons
+      .control-panel-header
+        button.control-button onclick="toggleAllLayers()" Toggle All Layers
+        button.control-button onclick="toggleBasemap()" Toggle Basemap
+      .control-panel-content
+        #layer-buttons
 
 #map-container
   #map_base.map-layer
@@ -282,12 +287,22 @@ javascript:
       startPerformanceMonitoring();
       requestAnimationFrame(countFrame);
       updateHoverModeButton();
+      updateBasemapButton();
     });
   };
 
   const toggleBasemap = () => {
     showBasemap = !showBasemap;
     document.getElementById('map_base').style.display = showBasemap ? 'block' : 'none';
+    updateBasemapButton();
+  };
+
+  const updateBasemapButton = () => {
+    const btn = document.querySelector('button[onclick="toggleBasemap()"]');
+    if (!btn) return;
+    
+    btn.textContent = showBasemap ? 'Hide Basemap' : 'Show Basemap';
+    btn.className = `control-button ${showBasemap ? 'active' : 'inactive'}`;
   };
 
   const toggleHoverMode = () => {
@@ -345,6 +360,8 @@ javascript:
     if (!currentStyle?.layers) return;
     
     const layerButtonsContainer = document.getElementById('layer-buttons');
+    if (!layerButtonsContainer) return;
+    
     currentStyle.layers.forEach(layer => {
       const button = document.createElement('button');
       const buttonId = toDomId('layer', layer.id);
