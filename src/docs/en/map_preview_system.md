@@ -1,4 +1,4 @@
-# Map Preview System Documentation
+# Map Preview System
 
 ## Overview
 

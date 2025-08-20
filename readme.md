@@ -5,18 +5,26 @@ A specialized service for combining and mixing Mapbox styles with support for sp
 [![Ruby](https://img.shields.io/badge/ruby-3.4+-red.svg)](https://ruby-lang.org)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](docker/)
 [![Tests](https://img.shields.io/badge/tests-passing-green.svg)](src/spec/)
+[![Русский](https://img.shields.io/badge/русский-документация-orange.svg)](src/docs/ru/README.md)
 
-## Features
+## Key Features
 
-- **Style Mixing**: Combine multiple Mapbox styles into unified styles
-- **Sprite Merging**: Automatic merging of sprite images and metadata
-- **Font Management**: Download and cache font files with range support
-- **Filter System**: Support for style filters with localization
-- **Map Preview System**: Interactive web-based map interface with real-time filtering
-- **Progress Tracking**: Real-time initialization progress monitoring
-- **REST API**: Complete API for style serving and management
-- **Docker Support**: Containerized deployment with volume mounting
-- **Testing**: Comprehensive test coverage for all components
+- **Style Mixing**: Combine multiple Mapbox styles into unified styles with automatic prefix management
+- **Sprite Merging**: Automatic merging of sprite images and metadata using ImageMagick
+- **Font Management**: Download and cache font files with range support (0-255, 256-511, etc.)
+- **Advanced Filtering**: Two-level filtering system with Mapbox expressions and real-time layer control
+- **Interactive Preview**: Web-based map interface with dual-mode controls (filters/layers) and performance monitoring
+- **REST API**: Complete API for style serving with authentication support
+- **Docker Ready**: Containerized deployment with volume mounting for configuration
+
+## Architecture Overview
+
+The service consists of several key components:
+
+- **[Style Mixer](src/docs/en/style_mixer.md)** - Combines multiple Mapbox styles with prefix management
+- **[Style Downloader](src/docs/en/style_downloader.md)** - Downloads source styles and resources with authentication support
+- **[Sprite Merger](src/docs/en/sprite_merger.md)** - Merges sprite assets using ImageMagick
+- **[Map Preview System](src/docs/en/map_preview_system.md)** - Advanced filtering and layer management
 
 ## Quick Start
 
@@ -84,13 +92,6 @@ styles:
       - https://example.com/styles/weather/timezones
 ```
 
-### Configuration Parameters
-
-- `styles`: Root object containing all style definitions
-- `id`: Unique identifier for the mixed style
-- `name`: Human-readable name for the style
-- `sources`: Array of URLs to source Mapbox styles
-
 ## API Reference
 
 ### Core Endpoints
@@ -137,25 +138,7 @@ styles:
 }
 ```
 
-## Architecture
-
-### Core Components
-
-- **StyleDownloader**: Downloads source styles, sprites, and fonts
-- **StyleMixer**: Combines multiple styles with prefix management
-- **SpriteMerger**: Merges sprite images and metadata
-- **Map Preview System**: Interactive web interface with filtering capabilities
-- **Sinatra App**: REST API and web interface
-
-### Data Flow
-
-1. **Initialization**: Service downloads all source styles on startup
-2. **Style Processing**: Each source style is processed and cached
-3. **Mixing**: Styles are combined with unique prefixes
-4. **Resource Merging**: Sprites and fonts are merged
-5. **Serving**: Mixed styles served through REST API
-
-### File Structure
+## File Structure
 
 ```
 src/
@@ -174,16 +157,14 @@ src/
 │   └── js/                # JavaScript files
 │       └── filters.js     # Filter system implementation
 ├── spec/                  # Test suite
-│   ├── api/               # API tests
-│   ├── services/          # Service tests
-│   └── integration/       # Integration tests
 ├── mixed_styles/          # Generated mixed styles
 ├── sprite/                # Merged sprite files
 ├── sprites/               # Source sprite files
 ├── raw_styles/            # Downloaded source styles
 ├── fonts/                 # Font files
 └── docs/                  # Documentation
-    └── map_preview_system.md  # Map preview system documentation
+    ├── en/                # English documentation
+    └── ru/                # Russian documentation
 ```
 
 ## Development
@@ -193,17 +174,6 @@ src/
 - Ruby 3.4+
 - Bundler
 - Docker (optional)
-
-### Map Preview System
-
-The service includes an interactive map preview system accessible at `/map`. This system provides:
-
-- **Dual Mode Interface**: Switch between filter-based and layer-based control
-- **Real-time Filtering**: Two-level filtering system with Mapbox expressions
-- **Performance Monitoring**: Real-time FPS, memory usage, and layer statistics
-- **Synchronized Maps**: Base map and style map with synchronized navigation
-
-For detailed documentation, see [Map Preview System Documentation](src/docs/map_preview_system.md).
 
 ### Setup
 
@@ -223,8 +193,6 @@ docker-compose up
 
 ### Testing
 
-The project includes comprehensive test coverage:
-
 ```bash
 # Run all tests
 bundle exec rspec
@@ -236,20 +204,6 @@ bundle exec rspec spec/integration/
 
 # Run with coverage
 COVERAGE=true bundle exec rspec
-```
-
-### Docker Development
-
-```bash
-# Build image
-docker build -t mapbox-style-mixer .
-
-# Run with volume mounting
-docker run --rm \
-  -v $(pwd)/src:/app \
-  -v $(pwd)/styles_config.yaml:/configs/styles_config.yaml \
-  -p 7000:7000 \
-  mapbox-style-mixer
 ```
 
 ## Deployment
@@ -293,36 +247,6 @@ services:
 - Verify font range format (0-255, 256-511, etc.)
 - Ensure font directory permissions
 
-### Logs
-
-Service logs are available through standard output:
-
-```bash
-# View logs
-docker logs mapbox-style-mixer
-
-# Follow logs
-docker logs -f mapbox-style-mixer
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for new functionality
-5. Run the test suite (`bundle exec rspec`)
-6. Commit your changes (`git commit -m 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Support
-
-For issues and questions:
-- Create an issue on GitHub
-- Check the troubleshooting section
-- Review the test examples in `src/spec/`
