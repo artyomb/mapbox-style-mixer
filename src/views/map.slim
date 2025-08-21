@@ -133,16 +133,6 @@ javascript:
     resourcesLoaded = 0;
     const promises = [];
     
-    if (style.sprite) {
-      totalResources += 2;
-      promises.push(
-        Promise.all([
-          fetch(style.sprite + '.json').catch(() => {}),
-          fetch(style.sprite + '.png').catch(() => {})
-        ]).then(() => { resourcesLoaded += 2; updateLoadingProgress(); })
-      );
-    }
-    
     if (style.glyphs) {
       totalResources += 1;
       promises.push(Promise.resolve().then(() => { resourcesLoaded++; updateLoadingProgress(); }));
