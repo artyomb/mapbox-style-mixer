@@ -132,7 +132,7 @@ sprite/
 
 ### High DPI Support
 
-Handles both regular and @2x sprite versions with independent processing:
+Handles both regular and @2x sprite versions with independent processing and automatic fallback generation:
 
 **Regular Sprites**:
 - Standard resolution (1x) sprite images
@@ -149,6 +149,13 @@ Handles both regular and @2x sprite versions with independent processing:
 - Independent merging processes
 - Coordinate scaling considerations for @2x sprites
 - Different output file naming conventions
+
+**Fallback Generation**:
+When @2x sprites are missing or incomplete for source styles, the system automatically generates them from regular sprites:
+- Uses ImageMagick to scale regular sprite images by 2x
+- Scales JSON metadata coordinates and dimensions proportionally
+- Creates scaled sprites directly in existing @2x directories
+- Maintains visual consistency across different display densities
 
 ### Single Sprite Handling
 

@@ -13,6 +13,7 @@ The Map Preview System is a sophisticated web-based interface for visualizing an
    - Dual-layer system (base map + style map)
    - Real-time performance monitoring
    - Two-level filtering system
+   - Support for external style URLs via `style_url` parameter
 
 2. **Layout System** (`map_layout.slim`)
    - Dark theme UI with IntelliJ-inspired styling
@@ -629,6 +630,45 @@ const checkStyleResources = (style) => {
   ]
 }
 ```
+
+## Style Navigation
+
+The system provides comprehensive navigation capabilities for both mixed and source styles:
+
+### Main Interface Navigation
+
+The main interface (`index.slim`) displays both mixed styles and their source components:
+
+**Mixed Style Navigation**:
+- Direct access to mixed style endpoints
+- Preview buttons for immediate map visualization
+- Copy functionality for style URLs
+
+**Source Style Navigation**:
+- Clickable links to individual source styles
+- Preview buttons for source style visualization
+- Copy functionality for source URLs
+- Consistent styling with mixed style endpoints
+
+### External Style Support
+
+The map preview interface supports external style URLs through the `style_url` parameter:
+
+**URL Format**: `/map?style_url=https://example.com/style.json`
+
+**Features**:
+- Direct loading of external Mapbox/MapLibre styles
+- Full filtering and layer control support
+- Performance monitoring for external styles
+- Consistent interface regardless of style source
+
+### Navigation Workflow
+
+1. **Style Discovery**: Browse available mixed styles and their sources
+2. **Quick Preview**: Use preview buttons for immediate visualization
+3. **Deep Navigation**: Click source links for detailed exploration
+4. **External Integration**: Load and preview external styles
+5. **URL Sharing**: Copy and share style URLs for collaboration
 
 ## Best Practices
 

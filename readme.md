@@ -10,10 +10,10 @@ A specialized service for combining and mixing Mapbox styles with support for sp
 ## Key Features
 
 - **Style Mixing**: Combine multiple Mapbox styles into unified styles with automatic prefix management
-- **Sprite Merging**: Automatic merging of sprite images and metadata using ImageMagick
+- **Sprite Merging**: Automatic merging of sprite images and metadata using ImageMagick with fallback generation for high-DPI sprites
 - **Font Management**: Download and cache font files with range support (0-255, 256-511, etc.)
 - **Advanced Filtering**: Two-level filtering system with Mapbox expressions and real-time layer control
-- **Interactive Preview**: Web-based map interface with dual-mode controls (filters/layers) and performance monitoring
+- **Interactive Preview**: Web-based map interface with dual-mode controls (filters/layers), performance monitoring, and source style navigation
 - **REST API**: Complete API for style serving with authentication support
 - **Docker Ready**: Containerized deployment with volume mounting for configuration
 
@@ -98,7 +98,7 @@ styles:
 
 | Endpoint | Method | Description | Response |
 |----------|--------|-------------|----------|
-| `/` | GET | Main interface with style list | HTML |
+| `/` | GET | Main interface with style list and source navigation | HTML |
 | `/status` | GET | Service initialization status | JSON |
 | `/styles` | GET | List all available styles | JSON |
 | `/styles/:id` | GET | Get mixed style JSON | JSON |
