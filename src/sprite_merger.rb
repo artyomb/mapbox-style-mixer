@@ -28,9 +28,64 @@ class SpriteMerger
     high_dpi_sprites = collect_sprite_files(mix_id, true)
     
     merge_sprite_set(regular_sprites, mix_id, false)
-    merge_sprite_set(high_dpi_sprites, mix_id, true)
+    
+    if high_dpi_sprites.length == regular_sprites.length
+      merge_sprite_set(high_dpi_sprites, mix_id, true)
+    elsif regular_sprites.any?
+      create_fallback_high_dpi_sprites(mix_id, regular_sprites, high_dpi_sprites)
+    end
     
     regular_sprites.any? || high_dpi_sprites.any?
+  end
+
+  def create_fallback_high_dpi_sprites(mix_id, regular_sprites, existing_high_dpi_sprites = [])
+    LOGGER.info "Creating fallback @2x sprites for #{mix_id}"
+    
+    all_high_dpi_dirs = Dir.glob("#{@sprites_dir}/#{mix_id}_*_@2x").select { |d| Dir.exist?(d) }
+    
+    if all_high_dpi_dirs.length == regular_sprites.length
+      scaled_sprites = regular_sprites.each_with_index.map do |sprite, index|
+        high_dpi_dir = all_high_dpi_dirs[index]
+        existing_sprite = existing_high_dpi_sprites.find { |s| s[:dir] == high_dpi_dir }
+        
+        existing_sprite || create_scaled_sprite_in_dir(sprite, high_dpi_dir)
+      end.compact
+      
+      merge_sprite_set(scaled_sprites, mix_id, true) if scaled_sprites.any?
+    else
+      LOGGER.warn "Mismatch between regular sprites (#{regular_sprites.length}) and @2x directories (#{all_high_dpi_dirs.length})"
+    end
+  end
+
+  def create_scaled_sprite_in_dir(sprite_data, high_dpi_dir)
+    png_file = File.join(high_dpi_dir, 'sprite.png')
+    json_file = File.join(high_dpi_dir, 'sprite.json')
+    
+    File.write(png_file, scale_png_file(sprite_data[:png_file], 2.0))
+    File.write(json_file, JSON.pretty_generate(scale_json_metadata(sprite_data[:json_data], 2.0)))
+    
+    { png_file: png_file, json_file: json_file, json_data: scale_json_metadata(sprite_data[:json_data], 2.0), dir: high_dpi_dir }
+  rescue => e
+    LOGGER.error "Failed to create scaled sprite in #{high_dpi_dir}: #{e.message}"
+    nil
+  end
+
+  def scale_png_file(png_file, scale_factor)
+    output_file = "#{png_file}_scaled"
+    system("convert #{png_file} -scale #{scale_factor * 100}% #{output_file}")
+    File.read(output_file).tap { File.delete(output_file) }
+  rescue => e
+    LOGGER.error "Failed to scale PNG #{png_file}: #{e.message}"
+    File.read(png_file)
+  end
+
+  def scale_json_metadata(json_data, scale_factor)
+    json_data.transform_values do |icon_data|
+      icon_data.dup.tap do |scaled_icon|
+        %w[width height x y].each { |key| scaled_icon[key] = (icon_data[key] * scale_factor).round }
+        scaled_icon['pixelRatio'] = (icon_data['pixelRatio'] || 1) * scale_factor
+      end
+    end
   end
 
   def merge_sprite_set(sprite_files, mix_id, high_dpi)
