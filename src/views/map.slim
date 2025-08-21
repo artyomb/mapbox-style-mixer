@@ -1,6 +1,7 @@
 ruby:
   style_name = params[:style]
-  style_url = style_name ? "#{request.base_url}/styles/#{style_name}" : nil
+  external_style_url = params[:style_url]
+  style_url = external_style_url || (style_name ? "#{request.base_url}/styles/#{style_name}" : nil)
 
 #loading-indicator
   .loading-progress
@@ -8,7 +9,7 @@ ruby:
     .progress-bar
       .progress-fill
 
-- if style_name
+- if style_name || external_style_url
   .layer-controls
     .mode-switcher
       button.mode-button.active id="mode-filters" onclick="switchMode(this, 'filters')" Filters

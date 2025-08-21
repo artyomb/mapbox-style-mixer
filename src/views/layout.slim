@@ -405,10 +405,27 @@ html
       |   margin-right: 8px;
       | }
       | 
+      | .source-link {
+      |   color: #6a9955;
+      |   text-decoration: underline;
+      |   font-size: 11px;
+      |   display: inline;
+      |   flex: 0 0 auto;
+      |   margin-left: 6px;
+      |   margin-right: 8px;
+      | }
+      | 
       | .endpoint-item {
       |   justify-content: flex-start;
       | }
       | .endpoint-item .test-btn {
+      |   margin-left: auto;
+      | }
+      | 
+      | .source-item {
+      |   justify-content: flex-start;
+      | }
+      | .source-item .test-btn {
       |   margin-left: auto;
       | }
       | 
@@ -474,7 +491,17 @@ html
           });
         });
         
-        document.querySelectorAll('.copy-btn:not(.endpoint-item .copy-btn)').forEach(function(btn) {
+        document.querySelectorAll('.source-item .copy-btn').forEach(function(btn) {
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const item = this.closest('.source-item');
+            const urlLink = item.querySelector('.source-link');
+            const url = urlLink.href;
+            copyToClipboard(url, this, item);
+          });
+        });
+        
+        document.querySelectorAll('.copy-btn:not(.endpoint-item .copy-btn):not(.source-item .copy-btn)').forEach(function(btn) {
           btn.addEventListener('click', function(e) {
             e.preventDefault();
             const text = this.getAttribute('data-copy-text');

@@ -65,8 +65,9 @@
             - style[:sources].each do |source|
               - source_url = source.is_a?(Hash) ? source['url'] : source
               .source-item
-                a.btn.btn-small.copy-btn href="#" data-copy-text="#{source_url}" 📋
-                span.source-url = source_url
+                a.btn.btn-small.copy-btn.disabled href="#" 📋
+                a.source-link href=source_url = source_url
+                a.btn.btn-small.test-btn.disabled href="/map?style_url=#{source_url}" 🗺️ Test Map
         
 
         
