@@ -11,9 +11,75 @@ The `SpriteMerger` class handles merging of sprite assets from multiple Mapbox s
 The sprite merging process involves several key steps:
 
 1. **Sprite Collection**: Scans and collects sprite files from multiple source styles
-2. **Image Merging**: Combines PNG sprite images using ImageMagick montage command
-3. **Metadata Merging**: Merges JSON sprite metadata with coordinate adjustments
-4. **Output Generation**: Creates unified sprite sets for both regular and @2x versions
+2. **Sprite Deduplication**: Removes duplicate sprites based on PNG file and JSON metadata comparison
+3. **Image Merging**: Combines PNG sprite images using ImageMagick montage command
+4. **Metadata Merging**: Merges JSON sprite metadata with coordinate adjustments
+5. **Output Generation**: Creates unified sprite sets for both regular and @2x versions
+
+### Sprite Deduplication
+
+The component automatically detects and removes duplicate sprites, preventing redundancy in final styles:
+
+```ruby
+def deduplicate_sprites(sprite_files)
+  return [] if sprite_files.empty?
+  return sprite_files if sprite_files.length == 1
+  
+  # Group sprites by hash
+  sprite_groups = group_sprites_by_hash(sprite_files)
+  
+  # Log duplicate information
+  if sprite_groups.length < sprite_files.length
+    sprite_groups.each_with_index do |group, index|
+      if group.length > 1
+        sprite_names = group.map { |s| File.basename(s[:dir]) }
+        LOGGER.info "Found duplicate sprites in group #{index + 1}: #{sprite_names.join(', ')}"
+      end
+    end
+  end
+  
+  # Select one sprite from each group
+  sprite_groups.map { |group| group.first }
+end
+```
+
+**Deduplication Process**:
+- **Hash Computation**: MD5 hash is computed for each sprite based on PNG file and JSON metadata
+- **Grouping**: Sprites are grouped by hash to identify duplicates
+- **Logging**: Information about found duplicates is logged
+- **Representative Selection**: One sprite is selected from each duplicate group
+
+**Sprite Hash Computation**:
+```ruby
+def compute_sprite_hash(sprite)
+  png_hash = Digest::MD5.file(sprite[:png_file]).hexdigest
+  json_hash = Digest::MD5.hexdigest(sprite[:json_data].to_json)
+  
+  "#{png_hash}_#{json_hash}"
+end
+```
+
+**Sprite Identity Check**:
+```ruby
+def sprites_identical?(sprite1, sprite2)
+  return false unless sprite1 && sprite2
+  
+  # Compare PNG files
+  png_identical = FileUtils.compare_file(sprite1[:png_file], sprite2[:png_file])
+  return false unless png_identical
+  
+  # Compare JSON metadata
+  json_identical = sprite1[:json_data] == sprite2[:json_data]
+  
+  png_identical && json_identical
+end
+```
+
+**Deduplication Benefits**:
+- **Size Reduction**: Excluding duplicate sprites reduces final file sizes
+- **Performance Improvement**: Fewer sprites to process and load
+- **Memory Optimization**: Reduced memory consumption during map rendering
+- **Debugging Simplification**: Cleaner logs and merge process reports
 
 ### Key Methods
 
@@ -23,6 +89,7 @@ Processes all configured sprite sets in the system by iterating through the conf
 #### `merge_sprites_for_mix(mix_id)`
 Merges sprites for a specific style mix:
 - Collects regular and @2x sprites from all source styles
+- Performs sprite deduplication to remove duplicates
 - Merges each sprite set independently
 - Returns success status for monitoring
 

@@ -1,5 +1,6 @@
 require 'json'
 require 'fileutils'
+require 'digest'
 
 class SpriteMerger
   def initialize(config = nil)
@@ -27,15 +28,56 @@ class SpriteMerger
     regular_sprites = collect_sprite_files(mix_id)
     high_dpi_sprites = collect_sprite_files(mix_id, true)
     
-    merge_sprite_set(regular_sprites, mix_id, false)
+    unique_regular_sprites = deduplicate_sprites(regular_sprites)
+    unique_high_dpi_sprites = deduplicate_sprites(high_dpi_sprites)
     
-    if high_dpi_sprites.length == regular_sprites.length
-      merge_sprite_set(high_dpi_sprites, mix_id, true)
-    elsif regular_sprites.any?
-      create_fallback_high_dpi_sprites(mix_id, regular_sprites, high_dpi_sprites)
+    LOGGER.info "Found #{regular_sprites.length} regular sprites, #{unique_regular_sprites.length} unique"
+    LOGGER.info "Found #{high_dpi_sprites.length} @2x sprites, #{unique_high_dpi_sprites.length} unique"
+    
+    merge_sprite_set(unique_regular_sprites, mix_id, false)
+    
+    if unique_high_dpi_sprites.length == unique_regular_sprites.length
+      merge_sprite_set(unique_high_dpi_sprites, mix_id, true)
+    elsif unique_regular_sprites.any?
+      create_fallback_high_dpi_sprites(mix_id, unique_regular_sprites, unique_high_dpi_sprites)
     end
     
     regular_sprites.any? || high_dpi_sprites.any?
+  end
+
+  def deduplicate_sprites(sprite_files)
+    return sprite_files if sprite_files.length <= 1
+    
+    sprite_groups = group_sprites_by_hash(sprite_files)
+    log_duplicates(sprite_groups, sprite_files.length) if sprite_groups.length < sprite_files.length
+    sprite_groups.map(&:first)
+  end
+
+  def group_sprites_by_hash(sprite_files)
+    sprite_files.group_by { |sprite| compute_sprite_hash(sprite) }.values
+  end
+
+  def compute_sprite_hash(sprite)
+    png_hash = Digest::MD5.file(sprite[:png_file]).hexdigest
+    json_hash = Digest::MD5.hexdigest(sprite[:json_data].to_json)
+    "#{png_hash}_#{json_hash}"
+  end
+
+  def sprites_identical?(sprite1, sprite2)
+    return false unless sprite1 && sprite2
+    
+    FileUtils.compare_file(sprite1[:png_file], sprite2[:png_file]) && 
+      sprite1[:json_data] == sprite2[:json_data]
+  end
+
+  private
+
+  def log_duplicates(sprite_groups, total_count)
+    sprite_groups.each_with_index do |group, index|
+      next unless group.length > 1
+      sprite_names = group.map { |s| File.basename(s[:dir]) }
+      LOGGER.info "Found duplicate sprites in group #{index + 1}: #{sprite_names.join(', ')}"
+    end
   end
 
   def create_fallback_high_dpi_sprites(mix_id, regular_sprites, existing_high_dpi_sprites = [])
@@ -43,18 +85,19 @@ class SpriteMerger
     
     all_high_dpi_dirs = Dir.glob("#{@sprites_dir}/#{mix_id}_*_@2x").select { |d| Dir.exist?(d) }
     
-    if all_high_dpi_dirs.length == regular_sprites.length
-      scaled_sprites = regular_sprites.each_with_index.map do |sprite, index|
-        high_dpi_dir = all_high_dpi_dirs[index]
-        existing_sprite = existing_high_dpi_sprites.find { |s| s[:dir] == high_dpi_dir }
-        
-        existing_sprite || create_scaled_sprite_in_dir(sprite, high_dpi_dir)
-      end.compact
+    scaled_sprites = regular_sprites.map do |sprite|
+      sprite_name = File.basename(sprite[:dir])
+      high_dpi_dir = all_high_dpi_dirs.find { |d| d.end_with?("#{sprite_name}_@2x") }
       
-      merge_sprite_set(scaled_sprites, mix_id, true) if scaled_sprites.any?
-    else
-      LOGGER.warn "Mismatch between regular sprites (#{regular_sprites.length}) and @2x directories (#{all_high_dpi_dirs.length})"
-    end
+      if high_dpi_dir
+        existing_high_dpi_sprites.find { |s| s[:dir] == high_dpi_dir } || 
+          create_scaled_sprite_in_dir(sprite, high_dpi_dir)
+      else
+        create_scaled_sprite_in_dir(sprite, "#{sprite[:dir]}_@2x_temp")
+      end
+    end.compact
+    
+    merge_sprite_set(scaled_sprites, mix_id, true) if scaled_sprites.any?
   end
 
   def create_scaled_sprite_in_dir(sprite_data, high_dpi_dir)

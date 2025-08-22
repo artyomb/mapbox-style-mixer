@@ -71,6 +71,72 @@ RSpec.describe SpriteMerger do
     end
   end
 
+  describe 'sprite deduplication' do
+    before do
+      create_duplicate_sprite_dir('test_mix_duplicate_1', {
+        'icon1' => { 'width' => 24, 'height' => 24, 'x' => 0, 'y' => 0, 'pixelRatio' => 1 }
+      })
+      create_duplicate_sprite_dir('test_mix_duplicate_2', {
+        'icon1' => { 'width' => 24, 'height' => 24, 'x' => 0, 'y' => 0, 'pixelRatio' => 1 }
+      })
+    end
+
+    it 'removes duplicate sprites' do
+      sprites = [
+        merger.send(:load_sprite_data, 'src/sprites/test_mix_duplicate_1'),
+        merger.send(:load_sprite_data, 'src/sprites/test_mix_duplicate_2')
+      ].compact
+      
+      unique_sprites = merger.send(:deduplicate_sprites, sprites)
+      expect(sprites.length).to eq(2)
+      expect(unique_sprites.length).to eq(1)
+    end
+
+    it 'keeps unique sprites' do
+      sprites = merger.send(:collect_sprite_files, 'test_mix')
+      unique_sprites = merger.send(:deduplicate_sprites, sprites)
+      expect(unique_sprites.length).to eq(sprites.length)
+    end
+
+    it 'handles edge cases' do
+      expect(merger.send(:deduplicate_sprites, [])).to eq([])
+      expect(merger.send(:deduplicate_sprites, [sprite1 = merger.send(:load_sprite_data, 'src/sprites/test_mix_weather_1')])).to eq([sprite1])
+    end
+  end
+
+  describe 'sprite hash computation' do
+    it 'computes consistent hash for identical sprites' do
+      sprite1 = sprite2 = merger.send(:load_sprite_data, 'src/sprites/test_mix_weather_1')
+      expect(merger.send(:compute_sprite_hash, sprite1)).to eq(merger.send(:compute_sprite_hash, sprite2))
+    end
+
+    it 'computes different hash for different sprites' do
+      sprite1 = merger.send(:load_sprite_data, 'src/sprites/test_mix_weather_1')
+      sprite2 = merger.send(:load_sprite_data, 'src/sprites/test_mix_location_2')
+      expect(merger.send(:compute_sprite_hash, sprite1)).not_to eq(merger.send(:compute_sprite_hash, sprite2))
+    end
+  end
+
+  describe 'sprite identity check' do
+    it 'identifies identical sprites' do
+      sprite1 = sprite2 = merger.send(:load_sprite_data, 'src/sprites/test_mix_weather_1')
+      expect(merger.send(:sprites_identical?, sprite1, sprite2)).to be true
+    end
+
+    it 'identifies different sprites' do
+      sprite1 = merger.send(:load_sprite_data, 'src/sprites/test_mix_weather_1')
+      sprite2 = merger.send(:load_sprite_data, 'src/sprites/test_mix_location_2')
+      expect(merger.send(:sprites_identical?, sprite1, sprite2)).to be false
+    end
+
+    it 'handles nil sprites' do
+      sprite1 = merger.send(:load_sprite_data, 'src/sprites/test_mix_weather_1')
+      expect(merger.send(:sprites_identical?, nil, sprite1)).to be false
+      expect(merger.send(:sprites_identical?, sprite1, nil)).to be false
+      expect(merger.send(:sprites_identical?, nil, nil)).to be false
+    end
+  end
+
   describe 'sprite file structure' do
     it 'creates sprite files with correct format' do
       expect(File.exist?('src/sprites/test_mix_weather_1/sprite.json')).to be true
@@ -108,5 +174,15 @@ RSpec.describe SpriteMerger do
       
       expect { merger.merge_sprites_for_mix('test_mix') }.not_to raise_error
     end
+  end
+
+  private
+
+  def create_duplicate_sprite_dir(name, icons)
+    dir = "src/sprites/#{name}"
+    FileUtils.mkdir_p(dir)
+    
+    File.write("#{dir}/sprite.png", 'duplicate_png_content')
+    File.write("#{dir}/sprite.json", JSON.pretty_generate(icons))
   end
 end
