@@ -29,7 +29,14 @@
     | Available Styles
     .header-buttons
       a.btn.refresh-btn.disabled href="/refresh" Refresh Styles
-      a.btn.map-btn.disabled href="/map" 🌍 Map Preview
+      a.btn.map-btn.disabled href="#" onclick="toggleMapPreviewForm()" 🌍 Map Preview
+  
+  #map-preview-form.map-preview-form.hidden
+    .form-container
+      .form-label Please paste URL
+      .input-group
+        input#style-url-input.form-input type="text" placeholder="https://example.com/style.json" 
+        button.btn.btn-primary.form-submit onclick="openMapWithStyle()" Go
   .styles-container
     - @styles.each do |style|
       .style-card.disabled

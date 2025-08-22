@@ -485,6 +485,40 @@ html
       |   display: none;
       | }
       | 
+      | .map-preview-form {
+      |   background: #313335; border: 1px solid #464749; border-radius: 3px;
+      |   padding: 12px; margin-top: 8px; animation: slideDown 0.3s ease;
+      | }
+      | @keyframes slideDown {
+      |   from { opacity: 0; transform: translateY(-10px); }
+      |   to { opacity: 1; transform: translateY(0); }
+      | }
+      | .form-container { display: flex; flex-direction: column; gap: 8px; }
+      | .form-label { color: #ffc66d; font-weight: bold; font-size: 13px; }
+      | .input-group { display: flex; gap: 8px; align-items: center; }
+      | .form-input {
+      |   flex: 1; background: #2b2b2b; border: 1px solid #555555; border-radius: 3px;
+      |   padding: 8px 12px; color: #a9b7c6; font-family: 'Courier New', monospace;
+      |   font-size: 12px; transition: border-color 0.2s ease;
+      | }
+      | .form-input:focus {
+      |   outline: none; border-color: #6897bb; box-shadow: 0 0 0 2px rgba(104, 151, 187, 0.2);
+      | }
+      | .form-input::placeholder { color: #808080; opacity: 0.7; }
+      | .form-submit {
+      |   background: #6a9955; color: #ffffff; border: 1px solid #7bb366;
+      |   padding: 8px 16px; border-radius: 3px; cursor: pointer; font-size: 12px;
+      |   font-weight: bold; transition: all 0.2s ease; white-space: nowrap;
+      | }
+      | .form-submit:hover {
+      |   background: #7bb366; border-color: #8cc477; transform: translateY(-1px);
+      | }
+      | .form-submit:active { transform: translateY(0); }
+      | .form-submit:disabled {
+      |   background: #3c3f41; color: #808080; border-color: #464749;
+      |   cursor: not-allowed; transform: none;
+      | }
+      | 
 
   body
     .container
@@ -649,4 +683,58 @@ html
       function toggleGlobalConfig() {
         const config = document.getElementById('global-config');
         config.classList.toggle('hidden');
-      } 
+      }
+      
+      const toggleMapPreviewForm = () => {
+        const [form, input] = ['map-preview-form', 'style-url-input'].map(id => document.getElementById(id));
+        const isHidden = form.classList.contains('hidden');
+        
+        form.classList.toggle('hidden', !isHidden);
+        isHidden ? (input.focus(), input.select()) : input.value = '';
+      };
+      
+      const openMapWithStyle = () => {
+        const url = document.getElementById('style-url-input').value.trim();
+        
+        if (!url) return showError('Please enter a style URL');
+        if (!isValidUrl(url)) return showError('Please enter a valid URL');
+        
+        window.location.href = `/map?style_url=${encodeURIComponent(url)}`;
+      };
+      
+      const isValidUrl = string => {
+        try { new URL(string); return true; } catch { return false; }
+      };
+      
+      const showError = message => {
+        const [input, submitBtn] = ['.form-input', '.form-submit'].map(sel => document.querySelector(sel));
+        const container = input.closest('.form-container');
+        
+        input.style.borderColor = '#f44747';
+        submitBtn.disabled = true;
+        
+        container.querySelector('.error-message')?.remove();
+        container.appendChild(Object.assign(document.createElement('div'), {
+          className: 'error-message',
+          textContent: message,
+          style: 'margin-top: 4px;'
+        }));
+        
+        setTimeout(() => {
+          input.style.borderColor = '#555555';
+          submitBtn.disabled = false;
+          container.querySelector('.error-message')?.remove();
+        }, 3000);
+      };
+      
+      document.addEventListener('DOMContentLoaded', () => {
+        const input = document.getElementById('style-url-input');
+        if (!input) return;
+        
+        input.addEventListener('keypress', e => e.key === 'Enter' && (e.preventDefault(), openMapWithStyle()));
+        input.addEventListener('input', function() {
+          this.style.borderColor = '#555555';
+          this.closest('.form-container').querySelector('.error-message')?.remove();
+          document.querySelector('.form-submit').disabled = false;
+        });
+      });
