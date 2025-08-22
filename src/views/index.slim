@@ -80,14 +80,13 @@
                 span.font-name = font[:name]
                 a.font-link href="/fonts/#{font[:path]}/0-255.pbf" Download
           
-        .sprites-section
-          .sprites-title Sprites (2)
-          .sprites-list
-            .sprite-item
-              a.btn.btn-small.copy-btn href="#" data-copy-text="#{request.base_url}/sprite/#{style[:id]}_sprite.png" 📋
-              span.sprite-url = "#{request.base_url}/sprite/#{style[:id]}_sprite.png"
-              a.sprite-link href="/sprite/#{style[:id]}_sprite.png" Download
-            .sprite-item
-              a.btn.btn-small.copy-btn href="#" data-copy-text="#{request.base_url}/sprite/#{style[:id]}_sprite.json" 📋
-              span.sprite-url = "#{request.base_url}/sprite/#{style[:id]}_sprite.json"
-              a.sprite-link href="/sprite/#{style[:id]}_sprite.json" Download 
+        - if style[:sprites].any?
+          .sprites-section
+            .sprites-title Sprites (#{style[:sprites].sum { |_, files| files.size }})
+            .sprites-list
+              - style[:sprites].each do |type, files|
+                - files.each do |ext|
+                  .sprite-item
+                    a.btn.btn-small.copy-btn href="#" data-copy-text="#{request.base_url}/sprite/#{style[:id]}_sprite#{type}.#{ext}" 📋
+                    span.sprite-url = "#{request.base_url}/sprite/#{style[:id]}_sprite#{type}.#{ext}"
+                    a.sprite-link href="/sprite/#{style[:id]}_sprite#{type}.#{ext}" Download 

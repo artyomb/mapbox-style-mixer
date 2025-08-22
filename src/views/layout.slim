@@ -521,7 +521,17 @@ html
           });
         });
         
-        document.querySelectorAll('.copy-btn:not(.endpoint-item .copy-btn):not(.source-item .copy-btn)').forEach(function(btn) {
+        document.querySelectorAll('.sprite-item .copy-btn').forEach(function(btn) {
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const text = this.getAttribute('data-copy-text');
+            if (text) {
+              copyToClipboard(text, this, this.closest('.sprite-item'));
+            }
+          });
+        });
+        
+        document.querySelectorAll('.copy-btn:not(.endpoint-item .copy-btn):not(.source-item .copy-btn):not(.sprite-item .copy-btn)').forEach(function(btn) {
           btn.addEventListener('click', function(e) {
             e.preventDefault();
             const text = this.getAttribute('data-copy-text');

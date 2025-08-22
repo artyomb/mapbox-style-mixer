@@ -58,9 +58,17 @@ helpers do
         sources: style_config['sources'],
         config: style_config,
         mixed_style: load_mixed_style_info(style_id),
-        fonts: extract_fonts_from_style(style_id)
+        fonts: extract_fonts_from_style(style_id),
+        sprites: get_sprite_info(style_id)
       }
     end
+  end
+
+  def get_sprite_info(style_id)
+    sprite_dir = File.expand_path('sprite', __dir__)
+    ['', '@2x'].map { |type| 
+      [type, %w[png json].select { |ext| File.exist?("#{sprite_dir}/#{style_id}_sprite#{type}.#{ext}") }]
+    }.select { |_, files| files.any? }
   end
   
   def load_mixed_style_info(style_id)
