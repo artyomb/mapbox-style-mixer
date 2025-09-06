@@ -60,11 +60,15 @@ ruby:
         .metric
           span.metric-label Layers:
           span.metric-value#layers-active-value 0
+      .metric-row#terrain-row style="display: none;"
+        .metric
+          span.metric-label Terrain:
+          span.metric-value#terrain-status-value -
 
 javascript:
   const mapEl = document.getElementById('map');
   const style_url = mapEl?.dataset?.styleUrl || null;
-  let showBasemap = true, currentMode = 'filters';
+  let showBasemap = false, currentMode = 'filters';
   let hoverMode = 'click';
   let layerStates = {};
   let map = null, map_base = null;
@@ -188,6 +192,7 @@ javascript:
     });
 
     map = createMap('map', style_url || 'https://demotiles.maplibre.org/style.json');
+    document.getElementById('map_base').style.display = 'none';
     map.addControl(new maplibregl.NavigationControl());
     map.on('error', (e) => { console.error('[MapLibre ERROR]', e?.error || e); });
 
@@ -220,8 +225,20 @@ javascript:
       } catch (_) {}
 
       const onStyleReady = () => {
-        try { map.setProjection({ type: 'globe' }); } catch (_) {}
+        try { 
+          const hasTerrain = currentStyle?.terrain;
+          const projectionType = hasTerrain ? 'mercator' : 'globe';
+          map.setProjection({ type: projectionType }); 
+        } catch (_) {}
         try { map.addControl(new maplibregl.GlobeControl(), 'top-right'); } catch (_) {}
+        
+        updateTerrainIndicator();
+        
+        if (currentStyle?.terrain) {
+          setTimeout(() => {
+            try { map.triggerRepaint(); } catch (_) {}
+          }, 500);
+        }
       };
       
       map.once('idle', onStyleReady);
@@ -294,6 +311,22 @@ javascript:
     btn.textContent = showBasemap ? 'Hide Basemap' : 'Show Basemap';
     btn.className = `control-button ${showBasemap ? 'active' : 'inactive'}`;
   };
+
+  const updateTerrainIndicator = () => {
+    const terrainRow = document.getElementById('terrain-row');
+    const terrainElement = document.getElementById('terrain-status-value');
+    if (!terrainRow || !terrainElement) return;
+    
+    const hasTerrain = currentStyle?.terrain;
+    if (hasTerrain) {
+      terrainRow.style.display = 'flex';
+      terrainElement.textContent = 'is detected';
+      terrainElement.className = 'metric-value success';
+    } else {
+      terrainRow.style.display = 'none';
+    }
+  };
+
 
   const toggleHoverMode = () => {
     hoverMode = hoverMode === 'hover' ? 'click' : 'hover';
@@ -460,6 +493,7 @@ javascript:
     } catch (e) {
       document.getElementById('zoom-level-value').textContent = 'N/A';
     }
+    updateTerrainIndicator();
   };
 
   const countFrame = () => {
