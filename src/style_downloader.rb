@@ -28,6 +28,10 @@ class StyleDownloader
 
   private
 
+  def faraday_client
+    @faraday_client ||= Faraday.new { |conn| conn.ssl.verify = false }
+  end
+
   def prepare_directories
     FileUtils.rm_rf([@raw_dir, @fonts_dir, @sprites_dir])
     FileUtils.mkdir_p([@raw_dir, @fonts_dir, @sprites_dir])
@@ -58,7 +62,7 @@ class StyleDownloader
       LOGGER.debug "Using Basic Auth for #{source_url}"
     end
     
-    resp = Faraday.get(source_url, headers: headers)
+    resp = faraday_client.get(source_url, headers: headers)
     raise "Failed to fetch #{source_url}" unless resp.success?
     
     style_json = JSON.parse(resp.body)
@@ -148,7 +152,7 @@ class StyleDownloader
   end
 
   def download_sprite_file(url, dir, ext)
-    r = Faraday.get("#{url}.#{ext}")
+    r = faraday_client.get("#{url}.#{ext}")
     if r.success?
       File.write(File.join(dir, "sprite.#{ext}"), r.body)
       LOGGER.debug "Downloaded sprite: #{url}.#{ext}"
@@ -195,7 +199,7 @@ class StyleDownloader
       url = glyphs_url.sub('{fontstack}', enc).sub('{range}', range)
       url += '.pbf' unless url.end_with?('.pbf')
       
-      r = Faraday.get(url)
+      r = faraday_client.get(url)
       if r.success?
         File.write(File.join(font_dir, fname), r.body)
         return true
@@ -206,7 +210,7 @@ class StyleDownloader
 
   def try_download_from_fallback(font_dir, fname, enc, range)
     url = "https://demotiles.maplibre.org/font/#{enc}/#{fname}"
-    r = Faraday.get(url)
+    r = faraday_client.get(url)
     File.write(File.join(font_dir, fname), r.body) if r.success?
   end
 end 
