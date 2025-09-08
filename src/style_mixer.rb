@@ -40,7 +40,8 @@ class StyleMixer
     
     source_styles.each_with_index do |style_data, index|
       prefix = style_prefixes[index]
-      %w[sources metadata layers].each { |type| send("merge_#{type}", mixed_style, style_data, prefix) }
+      source_config = mix_config['sources'][index]
+      %w[sources metadata layers].each { |type| send("merge_#{type}", mixed_style, style_data, prefix, source_config) }
     end
     
     require_relative 'sprite_merger'
@@ -102,12 +103,19 @@ class StyleMixer
     (1..Float::INFINITY).lazy.map { |i| "#{prefix}_#{i}" }.find { |p| !used_prefixes.include?(p) }
   end
 
-  def merge_sources(mixed_style, source_style, prefix)
+  def merge_sources(mixed_style, source_style, prefix, source_config = nil)
     return unless source_style['sources']
-    source_style['sources'].each { |name, config| mixed_style['sources']["#{prefix}_#{name}"] = config.dup }
+    
+    domain = source_config&.dig('url')&.match(%r{https?://([^/]+)})&.[](1)
+    
+    source_style['sources'].each do |name, config|
+      new_config = config.dup
+      new_config['url'] = new_config['url']&.gsub(/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/, domain) if domain
+      mixed_style['sources']["#{prefix}_#{name}"] = new_config
+    end
   end
 
-  def merge_layers(mixed_style, source_style, prefix)
+  def merge_layers(mixed_style, source_style, prefix, source_config = nil)
     return unless source_style['layers']
     
     source_style['layers'].each do |layer|
@@ -131,7 +139,7 @@ class StyleMixer
     end
   end
 
-  def merge_metadata(mixed_style, source_style, prefix)
+  def merge_metadata(mixed_style, source_style, prefix, source_config = nil)
     return unless source_style['metadata']
     
     merge_filters(mixed_style, source_style, prefix)
