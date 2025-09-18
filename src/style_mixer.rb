@@ -110,7 +110,9 @@ class StyleMixer
     
     source_style['sources'].each do |name, config|
       new_config = config.dup
-      new_config['url'] = new_config['url']&.gsub(/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/, domain) if domain
+      if domain && new_config['url']
+        new_config['url'] = new_config['url'].gsub(/\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b/, domain)
+      end
       mixed_style['sources']["#{prefix}_#{name}"] = new_config
     end
   end
