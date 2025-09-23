@@ -31,6 +31,14 @@ html
       |   color: #808080; 
       |   font-size: 13px;
       | }
+      | .error-message {
+      |   background: #3c3f41;
+      |   color: #f44747;
+      |   padding: 12px;
+      |   border-radius: 4px;
+      |   margin: 10px 0;
+      |   font-size: 13px;
+      | }
       | .section { 
       |   background: #3c3f41; 
       |   border: 1px solid #555555;
@@ -527,6 +535,8 @@ html
           div
             h1 Mapbox Style Mixer
             p Service for combining and managing Mapbox styles
+            - if @initialization_status && @initialization_status[:state] == 'error'
+              .error-message = @initialization_status[:message]
           .version-info
             span.version = "v" + (ENV['ORG_OPENCONTAINERS_IMAGE_VERSION'] || File.read('.version').strip rescue '<local run>')
       == yield 
@@ -625,6 +635,18 @@ html
         
         header.classList.remove('status-loading', 'status-ready', 'status-error');
         header.style.removeProperty('--progress');
+        
+        let errorMsg = header.querySelector('.error-message');
+        if (data.state === 'error') {
+          if (!errorMsg) {
+            errorMsg = document.createElement('div');
+            errorMsg.className = 'error-message';
+            header.querySelector('.header-content > div').appendChild(errorMsg);
+          }
+          errorMsg.textContent = data.message;
+        } else if (errorMsg) {
+          errorMsg.remove();
+        }
         
         if (data.state === 'loading') {
           header.classList.add('status-loading');

@@ -165,6 +165,7 @@ get '/' do
   @total_sources = @styles.sum { |s| s[:sources_count] }
   @uptime = Time.now - START_TIME
   @config = get_safe_config
+  @initialization_status = $initialization_status
   slim :index
 end
 
