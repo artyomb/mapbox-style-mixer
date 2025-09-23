@@ -16,25 +16,9 @@ $initialization_status = { state: 'error', progress: 0, message: 'Initializing..
 require_relative 'style_downloader'
 require_relative 'style_mixer'
 require_relative 'sprite_merger'
+require_relative 'style_initializer'
 
-Thread.new do
-  begin
-    LOGGER.info "Starting background initialization..."
-    $initialization_status = { state: 'loading', progress: 20, message: 'Downloading source styles...' }
-    LOGGER.info "Downloading source styles..."
-    StyleDownloader.new($config).download_all
-    
-    $initialization_status = { state: 'loading', progress: 70, message: 'Mixing styles...' }
-    LOGGER.info "Mixing styles..."
-    StyleMixer.new($config).mix_all_styles
-    
-    $initialization_status = { state: 'ready', progress: 100, message: 'Ready' }
-    LOGGER.info "Styles successfully loaded and mixed on startup"
-  rescue => e
-    $initialization_status = { state: 'error', progress: 0, message: "Error: #{e.message}" }
-    LOGGER.error "Error loading styles on startup: #{e.message}"
-  end
-end
+Thread.new { StyleInitializer.initialize_with_retry }
 
 helpers do
   def fetch_style(mix_id, config = $config)
@@ -234,23 +218,8 @@ end
 
 get '/refresh' do
   $initialization_status = { state: 'loading', progress: 0, message: 'Starting refresh...' }
-  
-  Thread.new do
-    begin
-      $initialization_status = { state: 'loading', progress: 20, message: 'Downloading source styles...' }
-      $config = YAML.load_file(ENV['CONFIG_PATH'] || File.expand_path('configs/styles_config.yaml', __dir__))
-      StyleDownloader.new($config).download_all
-      
-      $initialization_status = { state: 'loading', progress: 70, message: 'Mixing styles...' }
-      StyleMixer.new($config).mix_all_styles
-      
-      $initialization_status = { state: 'ready', progress: 100, message: 'Ready' }
-      LOGGER.info "Styles refreshed and mixed successfully"
-    rescue => e
-      $initialization_status = { state: 'error', progress: 0, message: "Error: #{e.message}" }
-      LOGGER.error "Error refreshing styles: #{e.message}"
-    end
-  end
+  $config = YAML.load_file(ENV['CONFIG_PATH'] || File.expand_path('configs/styles_config.yaml', __dir__))
+  Thread.new { StyleInitializer.initialize_with_retry }
   redirect '/'
 end
 
