@@ -13,7 +13,7 @@ A specialized service for combining and mixing Mapbox styles with support for sp
 - **Sprite Merging**: Automatic merging of sprite images and metadata using ImageMagick with fallback generation for high-DPI sprites
 - **Font Management**: Download and cache font files with range support (0-255, 256-511, etc.)
 - **Advanced Filtering**: Two-level filtering system with Mapbox expressions and real-time layer control
-- **Interactive Preview**: Web-based map interface with dual-mode controls (filters/layers), performance monitoring, and source style navigation
+- **Interactive Preview**: Web-based map interface powered by maplibre-preview gem with advanced filtering, performance monitoring, and source style navigation
 - **REST API**: Complete API for style serving with authentication support
 - **Docker Ready**: Containerized deployment with volume mounting for configuration
 
@@ -24,7 +24,7 @@ The service consists of several key components:
 - **[Style Mixer](src/docs/en/style_mixer.md)** - Combines multiple Mapbox styles with prefix management
 - **[Style Downloader](src/docs/en/style_downloader.md)** - Downloads source styles and resources with authentication support
 - **[Sprite Merger](src/docs/en/sprite_merger.md)** - Merges sprite assets using ImageMagick
-- **[Map Preview System](src/docs/en/map_preview_system.md)** - Advanced filtering and layer management
+- **[MapLibre Preview Gem](https://github.com/artyomb/maplibre-preview)** - Advanced map preview interface with filtering and layer management
 
 ## Quick Start
 
@@ -103,7 +103,7 @@ styles:
 | `/styles` | GET | List all available styles | JSON |
 | `/styles/:id` | GET | Get mixed style JSON | JSON |
 | `/refresh` | GET | Reload and remix all styles | Redirect |
-| `/map` | GET | Interactive map preview interface | HTML |
+| `/map` | GET | Interactive map preview interface (powered by maplibre-preview gem) | HTML |
 
 ### Resource Endpoints
 
@@ -150,12 +150,9 @@ src/
 │   └── styles_config.yaml # Configuration file
 ├── views/                 # Web interface templates
 │   ├── index.slim         # Main page
-│   ├── map.slim           # Map preview interface
-│   ├── map_layout.slim    # Map layout template
 │   └── layout.slim        # Layout template
 ├── public/                # Static assets
-│   └── js/                # JavaScript files
-│       └── filters.js     # Filter system implementation
+│   └── icons/             # Favicon and icons
 ├── spec/                  # Test suite
 ├── mixed_styles/          # Generated mixed styles
 ├── sprite/                # Merged sprite files
@@ -174,6 +171,7 @@ src/
 - Ruby 3.4+
 - Bundler
 - Docker (optional)
+- maplibre-preview gem (automatically installed)
 
 ### Setup
 

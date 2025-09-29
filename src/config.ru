@@ -4,6 +4,9 @@ require 'json'
 require 'faraday'
 require 'stack-service-base'
 require 'slim'
+require 'maplibre-preview'
+
+register MapLibrePreview::Extension
 
 StackServiceBase.rack_setup self
 
@@ -225,7 +228,7 @@ get '/refresh' do
 end
 
 get '/map' do
-  slim :map, layout: :map_layout
+  render_maplibre_preview
 end
 
 run Sinatra::Application
