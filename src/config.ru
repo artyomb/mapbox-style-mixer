@@ -228,7 +228,7 @@ get '/refresh' do
 end
 
 get '/map' do
-  render_maplibre_preview
+  slim :maplibre_map, layout: :maplibre_layout
 end
 
 run Sinatra::Application
