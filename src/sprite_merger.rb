@@ -203,7 +203,7 @@ class SpriteMerger
     FileUtils.mkdir_p(File.dirname(output_file))
     
     files_list = png_files.join(' ')
-    command = "convert #{files_list} -append #{output_file}"
+    command = "convert #{files_list} -append +repage #{output_file}"
     
     LOGGER.debug "Running ImageMagick: #{command}"
     
