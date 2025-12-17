@@ -1,6 +1,6 @@
 FROM ruby:3.4.4-slim-bookworm AS base
 
-RUN apt update && apt --fix-missing install -y build-essential pkg-config bash curl cmake libssl-dev imagemagick \
+RUN apt update && apt --fix-missing install -y build-essential pkg-config bash curl cmake libssl-dev libyaml-dev imagemagick \
      && rm -rf /var/lib/apt/lists/*
 
 RUN echo 'gem: --no-document' >> ~/.gemrc
