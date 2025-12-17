@@ -41,7 +41,10 @@ class StyleMixer
     source_styles.each_with_index do |style_data, index|
       prefix = style_prefixes[index]
       source_config = mix_config['sources'][index]
-      %w[sources metadata layers].each { |type| send("merge_#{type}", mixed_style, style_data, prefix, source_config) }
+      merge_sources(mixed_style, style_data, prefix, source_config)
+      merge_filters(mixed_style, style_data, prefix)
+      merge_metadata(mixed_style, style_data, prefix, source_config)
+      merge_layers(mixed_style, style_data, prefix, source_config)
     end
     
     require_relative 'sprite_merger'
@@ -144,7 +147,6 @@ class StyleMixer
   def merge_metadata(mixed_style, source_style, prefix, source_config = nil)
     return unless source_style['metadata']
     
-    merge_filters(mixed_style, source_style, prefix)
     merge_locale(mixed_style, source_style, prefix)
     merge_other_metadata(mixed_style, source_style)
   end
