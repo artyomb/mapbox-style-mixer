@@ -148,18 +148,30 @@ helpers do
   end
   
   def serve_font_file_fallback(fontstack, range)
-    decoded_fontstack = URI.decode_www_form_component(fontstack)
-    font_file = File.join(File.expand_path('fonts', __dir__), decoded_fontstack, "#{range}.pbf")
+    decoded = URI.decode_www_form_component(fontstack)
+    fonts = decoded.split(',').map(&:strip)
+    fonts_dir = File.expand_path('fonts', __dir__)
     
-    if File.exist?(font_file)
-      LOGGER.debug "Serving font file: #{font_file}"
-      content_type 'application/octet-stream'
-      File.read(font_file)
-    else
-      LOGGER.warn "Font file not found: #{font_file}"
-      content_type :json
-      get_available_fonts.to_json
+    fonts.each do |font|
+      font_file = File.join(fonts_dir, font, "#{range}.pbf")
+      return serve_font(font_file, decoded) if File.exist?(font_file)
+      
+      next if font.include?('/')
+      
+      Dir.glob("#{fonts_dir}/*/#{font}/#{range}.pbf").find do |found|
+        return serve_font(found, decoded) if File.exist?(found)
+      end
     end
+    
+    LOGGER.warn "Font file not found for any font in stack: #{decoded} (range: #{range})"
+    content_type :json
+    get_available_fonts.to_json
+  end
+  
+  def serve_font(font_file, fontstack)
+    LOGGER.debug "Serving font file: #{font_file} (from fontstack: #{fontstack})"
+    content_type 'application/octet-stream'
+    File.read(font_file)
   end
 end
 
