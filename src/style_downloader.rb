@@ -2,6 +2,8 @@ require 'yaml'
 require 'json'
 require 'fileutils'
 require 'faraday'
+require 'faraday/retry'
+require 'faraday/net_http_persistent'
 require 'uri'
 require 'parallel'
 
@@ -29,7 +31,13 @@ class StyleDownloader
   private
 
   def faraday_client
-    @faraday_client ||= Faraday.new { |conn| conn.ssl.verify = false }
+    @faraday_client ||= Faraday.new do |conn|
+      conn.ssl.verify = false
+      conn.request :retry, max: 2, interval: 0.2, backoff_factor: 2
+      conn.options.timeout = 15
+      conn.options.open_timeout = 10
+      conn.adapter :net_http_persistent, pool_size: 10, idle_timeout: 60
+    end
   end
 
   def prepare_directories
