@@ -1,4 +1,5 @@
 require 'sinatra'
+require 'uri'
 require 'yaml'
 require 'json'
 require 'faraday'
@@ -224,7 +225,9 @@ get '/sprite/:mix_id@2x.png' do
 end
 
 get '/fonts/*/:range.pbf' do
-  serve_font_file_fallback(params[:splat].first, params[:range])
+  fontstack = URI.decode_www_form_component(params[:splat].first)
+  range = URI.decode_www_form_component(params[:range])
+  serve_font_file_fallback(fontstack, range)
 end
 
 get '/fonts.json' do
