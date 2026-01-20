@@ -221,4 +221,4 @@ class StyleDownloader
     r = faraday_client.get(url)
     File.write(File.join(font_dir, fname), r.body) if r.success?
   end
-end 
+end
