@@ -1,4 +1,4 @@
-on: { push: { branches: [main,release] } }
+on: { push: { branches: [main,release,test] } }
 
 jobs:
   build_service_images:
