@@ -3,3 +3,5 @@
 **/node_modules
 *.iml
 src.iml
+AGENTS.md
+**/.knowledge/
