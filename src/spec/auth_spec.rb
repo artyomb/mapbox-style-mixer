@@ -81,37 +81,4 @@ RSpec.describe 'Basic Auth Support' do
     end
   end
 
-  describe 'password masking' do
-    def get_safe_config(config)
-      config.dup.tap do |safe_config|
-        safe_config['styles'] = safe_config['styles'].transform_values do |style_config|
-          style_config.dup.tap do |safe_style|
-            safe_style['sources'] = safe_style['sources'].map do |source|
-              source.is_a?(Hash) && source['auth'] ? 
-                source.dup.tap { |s| s['auth']['password'] = '***' if s['auth']['password'] } :
-                source
-            end
-          end
-        end
-      end
-    end
-
-    it 'masks passwords in safe config' do
-      config_with_auth = {
-        'styles' => {
-          'test' => {
-            'sources' => [
-              { 'url' => 'https://example.com/style.json',
-                'auth' => { 'username' => 'user', 'password' => 'secret' } }
-            ]
-          }
-        }
-      }
-      
-      safe_config = get_safe_config(config_with_auth)
-      password = safe_config.dig('styles', 'test', 'sources', 0, 'auth', 'password')
-      
-      expect(password).to eq('***')
-    end
-  end
-end 
+end

@@ -21,21 +21,34 @@ require_relative 'style_downloader'
 require_relative 'style_mixer'
 require_relative 'sprite_merger'
 require_relative 'style_initializer'
+require_relative 'asset_cache'
 
-Thread.new { StyleInitializer.initialize_with_retry }
+ASSET_CACHE = AssetCache.new($config)
+StyleInitializer.start($config)
+
+before do
+  @assets = ASSET_CACHE.checkout
+end
+
+after do
+  ASSET_CACHE.release(@assets)
+end
 
 helpers do
-  def fetch_style(mix_id, config = $config)
+  def asset_path(*parts) = File.join(@assets.root, *parts)
+
+  def fetch_style(mix_id, config = @assets.config)
     mix_config = config['styles'][mix_id]
     halt 404, { error: "Style '#{mix_id}' not found" }.to_json unless mix_config
     
-    mixed_file = File.expand_path("mixed_styles/#{mix_id}.json", __dir__)
+    mixed_file = asset_path('mixed_styles', "#{mix_id}.json")
     halt 404, { error: "Mixed style '#{mix_id}' not available" }.to_json unless File.exist?(mixed_file)
     
     JSON.parse(File.read(mixed_file))
   end
   
-  def get_styles_data(config = $config)
+  def get_styles_data(config = @assets.config)
+    config = get_safe_config(config)
     config['styles'].keys.map do |style_id|
       style_config = config['styles'][style_id]
       {
@@ -53,14 +66,14 @@ helpers do
   end
 
   def get_sprite_info(style_id)
-    sprite_dir = File.expand_path('sprite', __dir__)
+    sprite_dir = asset_path('sprite')
     ['', '@2x'].map { |type| 
       [type, %w[png json].select { |ext| File.exist?("#{sprite_dir}/#{style_id}_sprite#{type}.#{ext}") }]
     }.select { |_, files| files.any? }
   end
   
   def load_mixed_style_info(style_id)
-    mixed_file = File.expand_path("mixed_styles/#{style_id}.json", __dir__)
+    mixed_file = asset_path('mixed_styles', "#{style_id}.json")
     return { layers_count: 0, sources_count: 0 } unless File.exist?(mixed_file)
     
     mixed_style = JSON.parse(File.read(mixed_file))
@@ -74,7 +87,7 @@ helpers do
   end
   
   def extract_fonts_from_style(style_id)
-    mixed_file = File.expand_path("mixed_styles/#{style_id}.json", __dir__)
+    mixed_file = asset_path('mixed_styles', "#{style_id}.json")
     return [] unless File.exist?(mixed_file)
     
     JSON.parse(File.read(mixed_file))
@@ -112,14 +125,14 @@ helpers do
     raise "Missing auth fields: #{missing}" if missing.any?
   end
   
-  def get_safe_config(config = $config)
+  def get_safe_config(config = @assets.config)
     config.dup.tap do |safe_config|
       safe_config['styles'] = safe_config['styles'].transform_values do |style_config|
         style_config.dup.tap do |safe_style|
           safe_style['sources'] = safe_style['sources'].map do |source|
             validate_auth_config(source)
             source.is_a?(Hash) && source['auth'] ? 
-              source.dup.tap { |s| s['auth']['password'] = '***' if s['auth']['password'] } :
+              source.merge('auth' => source['auth'].merge('password' => '***')) :
               source
           end
         end
@@ -129,7 +142,7 @@ helpers do
   
   def serve_sprite_file(mix_id, extension, high_dpi = false)
     suffix = high_dpi ? "@2x" : ""
-    sprite_file = File.expand_path("sprite/#{mix_id}#{suffix}.#{extension}", __dir__)
+    sprite_file = asset_path('sprite', "#{mix_id}#{suffix}.#{extension}")
     
     if File.exist?(sprite_file)
       content_type extension == 'json' ? :json : :png
@@ -140,7 +153,7 @@ helpers do
   end
   
   def get_available_fonts
-    fonts_dir = File.expand_path('fonts', __dir__)
+    fonts_dir = asset_path('fonts')
     Dir.glob("#{fonts_dir}/**/*/").select { |path| 
       Dir.glob("#{path}*.pbf").any?
     }.map { |path| 
@@ -151,7 +164,7 @@ helpers do
   def serve_font_file_fallback(fontstack, range)
     decoded = URI.decode_www_form_component(fontstack)
     fonts = decoded.split(',').map(&:strip)
-    fonts_dir = File.expand_path('fonts', __dir__)
+    fonts_dir = asset_path('fonts')
     
     fonts.each do |font|
       font_file = File.join(fonts_dir, font, "#{range}.pbf")
@@ -166,7 +179,7 @@ helpers do
     
     LOGGER.warn "Font file not found for any font in stack: #{decoded} (range: #{range})"
     content_type :json
-    get_available_fonts.to_json
+    halt 404, { error: 'Glyph not found', fontstack: decoded, range: range }.to_json
   end
   
   def serve_font(font_file, fontstack)
@@ -204,7 +217,6 @@ get '/styles/:style' do
   style_json = style.to_json
   style_json.gsub!('"/sprite/', "\"#{request.base_url}/sprite/")
   style_json.gsub!('"/fonts/', "\"#{request.base_url}/fonts/")
-  
   style_json
 end
 
@@ -236,9 +248,8 @@ get '/fonts.json' do
 end
 
 get '/refresh' do
-  $initialization_status = { state: 'loading', progress: 0, message: 'Starting refresh...' }
-  $config = YAML.load_file(ENV['CONFIG_PATH'] || File.expand_path('configs/styles_config.yaml', __dir__))
-  Thread.new { StyleInitializer.initialize_with_retry }
+  config = YAML.load_file(ENV['CONFIG_PATH'] || File.expand_path('configs/styles_config.yaml', __dir__))
+  StyleInitializer.start(config)
   redirect '/'
 end
 

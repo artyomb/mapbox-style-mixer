@@ -12,6 +12,7 @@ src/.bundle/
 src/coverage/
 src/spec/results/
 src/fonts/
+src/cache/
 src/mixed_styles/
 src/raw_styles/
 src/sprite/

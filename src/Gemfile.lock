@@ -513,6 +513,7 @@ DEPENDENCIES
   faraday-net_http
   faraday-net_http_persistent (~> 2.0)
   faraday-retry (~> 2.2)
+  google-protobuf
   maplibre-preview
   parallel
   rack (~> 3.2.7)

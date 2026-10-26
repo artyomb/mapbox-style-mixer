@@ -4,10 +4,11 @@ require 'yaml'
 require 'set'
 
 class StyleMixer
-  def initialize(config = nil)
+  def initialize(config = nil, asset_root: __dir__)
     @config = config || $config
-    @raw_dir = File.expand_path('raw_styles', __dir__)
-    @mixed_dir = File.expand_path('mixed_styles', __dir__)
+    @asset_root = asset_root
+    @raw_dir = File.join(asset_root, 'raw_styles')
+    @mixed_dir = File.join(asset_root, 'mixed_styles')
   end
 
   def mix_all_styles
@@ -48,11 +49,11 @@ class StyleMixer
     end
     
     require_relative 'sprite_merger'
-    sprite_merger = SpriteMerger.new(@config)
+    sprite_merger = SpriteMerger.new(@config, asset_root: @asset_root)
     sprite_result = sprite_merger.merge_sprites_for_mix(mix_id)
     
     sprite_base_path = "/sprite/#{mix_id}_sprite"
-    sprite_path = File.exist?(File.expand_path("sprite/#{mix_id}_sprite.json", __dir__)) ? sprite_base_path : nil
+    sprite_path = File.exist?(File.join(@asset_root, 'sprite', "#{mix_id}_sprite.json")) ? sprite_base_path : nil
     
     mixed_style['sprite'] = sprite_path
     mixed_style['glyphs'] = "/fonts/{fontstack}/{range}.pbf"
@@ -109,7 +110,8 @@ class StyleMixer
   def merge_sources(mixed_style, source_style, prefix, source_config = nil)
     return unless source_style['sources']
     
-    domain = source_config&.dig('url')&.match(%r{https?://([^/]+)})&.[](1)
+    source_url = source_config.is_a?(Hash) ? source_config['url'] : source_config
+    domain = source_url&.match(%r{https?://([^/]+)})&.[](1)
     
     source_style['sources'].each do |name, config|
       new_config = config.dup
@@ -237,5 +239,3 @@ class StyleMixer
     end
   end
 end
-
- 

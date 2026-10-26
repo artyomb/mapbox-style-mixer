@@ -6,13 +6,15 @@ require 'faraday/retry'
 require 'faraday/net_http_persistent'
 require 'uri'
 require 'parallel'
+require 'base64'
+require_relative 'glyph_pbf'
 
 class StyleDownloader
-  def initialize(config = nil)
+  def initialize(config = nil, asset_root: __dir__)
     @config = config || $config
-    @raw_dir = File.expand_path('raw_styles', __dir__)
-    @fonts_dir = File.expand_path('fonts', __dir__)
-    @sprites_dir = File.expand_path('sprites', __dir__)
+    @raw_dir = File.join(asset_root, 'raw_styles')
+    @fonts_dir = File.join(asset_root, 'fonts')
+    @sprites_dir = File.join(asset_root, 'sprites')
   end
 
   def download_all
@@ -70,7 +72,7 @@ class StyleDownloader
       LOGGER.debug "Using Basic Auth for #{source_url}"
     end
     
-    resp = faraday_client.get(source_url, headers: headers)
+    resp = faraday_client.get(source_url, nil, headers)
     raise "Failed to fetch #{source_url}" unless resp.success?
     
     style_json = JSON.parse(resp.body)
@@ -199,7 +201,9 @@ class StyleDownloader
     fname = "#{range}.pbf"
     
     return if try_download_from_glyphs_urls(font_dir, fname, enc, range, all_glyphs_urls)
-    try_download_from_fallback(font_dir, fname, enc, range)
+    return if try_download_from_fallback(font_dir, fname, enc, range)
+
+    raise "Unable to download valid glyph #{enc} (range: #{range})"
   end
 
   def try_download_from_glyphs_urls(font_dir, fname, enc, range, all_glyphs_urls)
@@ -207,18 +211,25 @@ class StyleDownloader
       url = glyphs_url.sub('{fontstack}', enc).sub('{range}', range)
       url += '.pbf' unless url.end_with?('.pbf')
       
-      r = faraday_client.get(url)
-      if r.success?
-        File.write(File.join(font_dir, fname), r.body)
-        return true
-      end
+      return true if download_glyph_file(url, File.join(font_dir, fname))
     end
     false
   end
 
   def try_download_from_fallback(font_dir, fname, enc, range)
     url = "https://demotiles.maplibre.org/font/#{enc}/#{fname}"
-    r = faraday_client.get(url)
-    File.write(File.join(font_dir, fname), r.body) if r.success?
+    download_glyph_file(url, File.join(font_dir, fname))
+  end
+
+  def download_glyph_file(url, path)
+    response = faraday_client.get(url)
+    return false unless response.success?
+
+    GlyphPbf.validate!(response.body)
+    File.binwrite(path, response.body)
+    true
+  rescue Faraday::Error, GlyphPbf::InvalidData => error
+    LOGGER.warn "Rejected glyph #{File.basename(path)} from #{URI(url).host}: #{error.message}"
+    false
   end
 end

@@ -2,6 +2,7 @@
 .env*
 .knowledge
 coverage
+cache
 fonts
 mixed_styles
 raw_styles

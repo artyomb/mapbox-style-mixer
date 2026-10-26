@@ -14,6 +14,7 @@ gem 'falcon'
 
 gem 'stack-service-base'
 gem 'parallel'
+gem 'google-protobuf'
 gem 'slim'
 gem 'sassc'
 gem 'build-labels'

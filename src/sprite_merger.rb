@@ -3,10 +3,10 @@ require 'fileutils'
 require 'digest'
 
 class SpriteMerger
-  def initialize(config = nil)
+  def initialize(config = nil, asset_root: __dir__)
     @config = config || $config
-    @sprites_dir = File.expand_path('sprites', __dir__)
-    @output_dir = File.expand_path('sprite', __dir__)
+    @sprites_dir = File.join(asset_root, 'sprites')
+    @output_dir = File.join(asset_root, 'sprite')
   end
 
   def merge_all_sprites
