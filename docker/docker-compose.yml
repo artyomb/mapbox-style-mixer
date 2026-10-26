@@ -3,32 +3,12 @@ services:
     image: ${REGISTRY_HOST}/mapbox-style-mixer
     build:
       context: ../src
+      additional_contexts:
+        docker: ../docker
       dockerfile: ../docker/ruby/Dockerfile
-      cache_from:
-        - type=gha,scope=mapbox-style-mixer
-      cache_to:
-        - type=gha,scope=mapbox-style-mixer,mode=max
     ports:
       - 7000:7000
     environment:
       - CONFIG_PATH=/configs/styles_config.yaml
     volumes:
       - ../src/configs:/configs
-
-  tests:
-    image: ${REGISTRY_HOST}/mapbox-style-mixer
-    build:
-      context: ../src
-      dockerfile: ../docker/ruby/Dockerfile
-      cache_from:
-        - type=gha,scope=mapbox-style-mixer
-      cache_to:
-        - type=gha,scope=mapbox-style-mixer,mode=max
-    environment:
-      - RACK_ENV=test
-      - CONFIG_PATH=/configs/styles_config.yaml
-    volumes:
-      - ../src:/app
-      - ../src/configs:/configs
-    working_dir: /app
-    command: bundle exec rspec --format progress

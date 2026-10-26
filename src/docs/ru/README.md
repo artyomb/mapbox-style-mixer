@@ -2,7 +2,7 @@
 
 Специализированный сервис для объединения и смешивания стилей Mapbox с поддержкой спрайтов, шрифтов и фильтров. Сервис загружает несколько исходных стилей, объединяет их в единые стили и предоставляет их через REST API.
 
-[![Ruby](https://img.shields.io/badge/ruby-3.4+-red.svg)](https://ruby-lang.org)
+[![Ruby](https://img.shields.io/badge/ruby-4.0.9-red.svg)](https://ruby-lang.org)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](docker/)
 [![Tests](https://img.shields.io/badge/tests-passing-green.svg)](src/spec/)
 [![English](https://img.shields.io/badge/english-documentation-blue.svg)](../../../readme.md)
@@ -168,12 +168,14 @@ src/
 
 ### Предварительные требования
 
-- Ruby 3.4+
+- Ruby 4.0.9 (версия закреплена в `src/.ruby-version`)
 - Bundler
 - Docker (опционально)
 - gem maplibre-preview (устанавливается автоматически)
 
 ### Настройка
+
+Команды Bundler выполняются из `src/`.
 
 ```bash
 # Установка зависимостей
@@ -184,12 +186,21 @@ bundle exec rspec
 
 # Запуск сервера разработки
 bundle exec rackup -p 7000
+```
 
-# Запуск с Docker
-docker-compose up
+Запуск с Docker из корня репозитория:
+
+```bash
+docker compose -f docker/docker-compose.yml up --build mapbox_style_mixer
 ```
 
 ### Тестирование
+
+Отчёты сохраняются в `src/spec/results/`, покрытие — в `src/coverage/`.
+Интеграционный сценарий запускает настоящее приложение с Falcon во временном
+каталоге и загружает стиль с локального HTTP-сервера, без обращения к рабочим
+источникам. Стадия Docker `tests` выполняет тесты при сборке; стадия `deploy`
+зависит от её результатов, поэтому ошибка тестов блокирует сборку runtime-образа.
 
 ```bash
 # Запуск всех тестов
@@ -201,7 +212,7 @@ bundle exec rspec spec/services/
 bundle exec rspec spec/integration/
 
 # Запуск с покрытием
-COVERAGE=true bundle exec rspec
+bundle exec rake coverage
 ```
 
 ## Развертывание

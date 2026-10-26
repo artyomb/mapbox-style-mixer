@@ -2,7 +2,7 @@
 
 A specialized service for combining and mixing Mapbox styles with support for sprites, fonts, and filters. The service downloads multiple source styles, merges them into unified styles, and serves them through a REST API.
 
-[![Ruby](https://img.shields.io/badge/ruby-3.4+-red.svg)](https://ruby-lang.org)
+[![Ruby](https://img.shields.io/badge/ruby-4.0.9-red.svg)](https://ruby-lang.org)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](docker/)
 [![Tests](https://img.shields.io/badge/tests-passing-green.svg)](src/spec/)
 [![Русский](https://img.shields.io/badge/русский-документация-orange.svg)](src/docs/ru/README.md)
@@ -58,6 +58,7 @@ open http://localhost:7000
 # Clone repository
 git clone https://github.com/user/mapbox-style-mixer.git
 cd mapbox-style-mixer
+cd src
 
 # Install dependencies
 bundle install
@@ -168,7 +169,7 @@ src/
 
 ### Prerequisites
 
-- Ruby 3.4+
+- Ruby 4.0.9 (also pinned in `src/.ruby-version`)
 - Bundler
 - Docker (optional)
 - maplibre-preview gem (automatically installed)
@@ -176,6 +177,8 @@ src/
 ### Setup
 
 ```bash
+cd src
+
 # Install dependencies
 bundle install
 
@@ -184,12 +187,20 @@ bundle exec rspec
 
 # Start development server
 bundle exec rackup -p 7000
+```
 
-# Run with Docker
-docker-compose up
+Run locally with Docker Compose from the repository root:
+
+```bash
+docker compose -f docker/docker-compose.yml up --build mapbox_style_mixer
 ```
 
 ### Testing
+
+Run these commands from `src/`. Reports are written to `spec/results/`, and
+coverage is written to `coverage/`. The integration scenario starts the real
+Falcon application in a temporary directory and downloads a style from a local
+HTTP fixture; it does not contact configured production sources.
 
 ```bash
 # Run all tests
@@ -201,12 +212,27 @@ bundle exec rspec spec/services/
 bundle exec rspec spec/integration/
 
 # Run with coverage
-COVERAGE=true bundle exec rspec
+bundle exec rake coverage
+```
+
+The Dockerfile provides `base`, `tests`, and `deploy` stages. Tests run during
+the `tests` build, and `deploy` depends on their reports, so a failing suite
+blocks the runtime image. To build and rerun the isolated suite locally:
+
+```bash
+(cd docker && BUILDX_BAKE_ENTITLEMENTS_FS=0 docker buildx bake -f docker-compose.yml \
+  --set '*.target=tests' --set '*.tags=mapbox-style-mixer:tests' --load)
+docker run --rm mapbox-style-mixer:tests
 ```
 
 ## Deployment
 
 ### Docker Compose
+
+`docker/docker-compose.yml` is the corporate image build manifest. The GitHub
+workflow transforms it with `build-labels`, builds and scans the images, and
+publishes them after a successful scan. Its port and config mount also support
+local development; corporate deployment configuration belongs to the stack.
 
 ```yaml
 # docker-compose.yml
@@ -225,6 +251,10 @@ services:
 
 - `CONFIG_PATH`: Path to configuration file (default: `configs/styles_config.yaml`)
 - `RACK_ENV`: Environment mode (development/production)
+
+The container listens on `PORT=7000`. StackServiceBase supplies `/healthcheck`;
+the image checks it automatically. This checks HTTP availability; `/status`
+reports whether source downloading and style mixing have completed.
 
 ## Troubleshooting
 

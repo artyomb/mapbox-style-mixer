@@ -1,7 +1,7 @@
-FROM ruby:3.4.4-slim-bookworm AS base
+FROM ruby:4.0.9-slim-bookworm AS base
 
-RUN apt update && apt --fix-missing install -y build-essential pkg-config bash curl cmake libssl-dev libyaml-dev imagemagick \
-     && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends build-essential pkg-config curl cmake libssl-dev libyaml-dev imagemagick \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN echo 'gem: --no-document' >> ~/.gemrc
 
@@ -12,23 +12,38 @@ COPY Gemfile* /app/
 RUN bundle install --jobs $(nproc) --retry=3 && \
     bundle clean --force && rm -rf /usr/local/bundle/cache/*
 
-FROM ruby:3.4.4-slim-bookworm AS deploy
-RUN apt update && apt install --fix-missing -y bash curl libssl-dev imagemagick \
-     && rm -rf /var/lib/apt/lists/*
-
-COPY --from=base /usr/local/bundle /usr/local/bundle
+# The bundle replaces the vulnerable default JSON gem (CVE-2026-33210).
+RUN rm -rf /usr/local/lib/ruby/4.0.0/json* /usr/local/lib/ruby/4.0.0/*-linux/json \
+    /usr/local/lib/ruby/gems/4.0.0/gems/json-* \
+    /usr/local/lib/ruby/gems/4.0.0/specifications/default/json-*.gemspec
 
 COPY . /app
 
-ENV SERVER_ENV=production \
+FROM base AS tests
+ENV RACK_ENV=test NO_RT_DEBUG=1
+RUN bundle exec rspec
+CMD ["bundle", "exec", "rspec"]
+
+FROM ruby:4.0.9-slim-bookworm AS deploy
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends bash curl libssl-dev libyaml-0-2 imagemagick \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=base /usr/local/bundle /usr/local/bundle
+
+# The bundle replaces the vulnerable default JSON gem (CVE-2026-33210).
+RUN rm -rf /usr/local/lib/ruby/4.0.0/json* /usr/local/lib/ruby/4.0.0/*-linux/json \
+    /usr/local/lib/ruby/gems/4.0.0/gems/json-* \
+    /usr/local/lib/ruby/gems/4.0.0/specifications/default/json-*.gemspec
+
+COPY --from=tests /app/spec/results /app/spec/results
+COPY . /app
+
+ENV RUBY_YJIT_ENABLE=1 \
+    SERVER_ENV=production \
     RACK_ENV=production \
     PORT=7000
 
-ENV RUBY_YJIT_ENABLE=1
-
 WORKDIR /app
 
-# --start_period=5s (Unknown flag: start_period)
-# HEALTHCHECK --interval=15s --timeout=2s --retries=3 CMD curl --fail http://127.0.0.1:$PORT/healthcheck || exit 1
-CMD ls && bundle exec rackup -o 0.0.0.0 -p $PORT -s falcon
-# docker-compose build --progress plain
+HEALTHCHECK --interval=15s --timeout=2s --retries=3 CMD curl --fail http://127.0.0.1:$PORT/healthcheck || exit 1
+CMD bundle exec rackup -o 0.0.0.0 -p $PORT -s falcon

@@ -5,3 +5,14 @@
 src.iml
 AGENTS.md
 **/.knowledge/
+temp
+.env.local
+docker/bake.yml
+src/.bundle/
+src/coverage/
+src/spec/results/
+src/fonts/
+src/mixed_styles/
+src/raw_styles/
+src/sprite/
+src/sprites/

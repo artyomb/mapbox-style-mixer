@@ -1,28 +1,31 @@
 source 'https://rubygems.org'
-ruby '3.4.4'
+ruby '4.0.9'
 
 gem 'sinatra'
 gem 'async'
 gem 'faraday'
-gem 'faraday-net_http'  # or just rely on the default adapter
+gem 'faraday-net_http'
 gem 'faraday-retry',               '~> 2.2'
 gem 'faraday-net_http_persistent', '~> 2.0'
 
-gem 'rack', '~> 3.1.13'
-gem 'rackup', '~> 2.2.1'
+gem 'rack', '~> 3.2.7'
+gem 'rackup', '~> 2.3.1'
 gem 'falcon'
 
 gem 'stack-service-base'
-#, path: '/home/user/projects/stack-service-base'
 gem 'parallel'
 gem 'slim'
 gem 'sassc'
 gem 'build-labels'
 gem 'maplibre-preview'
+gem 'resolv', '>= 0.7.2'
 
 group :test do
   gem 'rspec'
   gem 'rack-test'
   gem 'webmock'
   gem 'fakefs'
+  gem 'rake'
+  gem 'rspec_junit_formatter'
+  gem 'simplecov'
 end

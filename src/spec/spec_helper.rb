@@ -1,3 +1,6 @@
+require 'simplecov'
+SimpleCov.start
+
 module StackServiceBase
   def self.rack_setup(app) = nil
 end
